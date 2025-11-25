@@ -1,5 +1,5 @@
 package com.backend.bff_spring.api;
 
-public class clienteDto {
+public class ClienteDto {
     private Long id;
 }

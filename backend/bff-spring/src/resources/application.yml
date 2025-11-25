@@ -1,0 +1,20 @@
+spring:
+  security:
+    oauth2:
+      client:
+        registration:
+          bff-client:
+            client-id: <BFF_CLIENT_ID>
+            client-secret: <BFF_CLIENT_SECRET>
+            authorization-grant-type: client_credentials
+            scope: .default
+        provider:
+          azure:
+            token-uri: https://login.microsoftonline.com/<TENANT_ID>/oauth2/v2.0/token
+server:
+  port: 8080
+# TODO: crear las funciones en azure y asignar las variables
+functions: 
+  productosBaseUrl: ${FN_EVENTOS_BASEURL:}
+  bodegasBaseUrl:   ${FN_OBRAS_BASEURL:}
+  graphqlBaseUrl: ${FN_GRAPHQL_BASEURL:}

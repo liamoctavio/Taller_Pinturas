@@ -1,5 +1,5 @@
 package com.backend.bff_spring.api;
 
-public class obrasDto {
+public class ObrasDto {
     private Long id;
 }

@@ -1,6 +1,6 @@
 package com.backend.bff_spring.api;
 
-public class eventoDto {
+public class EventoDto {
     private Long id;
 
 }
