@@ -14,7 +14,5 @@ spring:
 server:
   port: 8080
 # TODO: crear las funciones en azure y asignar las variables
-functions: 
-  productosBaseUrl: ${FN_EVENTOS_BASEURL:}
-  bodegasBaseUrl:   ${FN_OBRAS_BASEURL:}
-  graphqlBaseUrl: ${FN_GRAPHQL_BASEURL:}
+functions:
+  tallerPinturasBaseUrl: ${TALLER_PINTURAS:}
