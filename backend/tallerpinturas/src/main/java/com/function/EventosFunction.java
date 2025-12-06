@@ -2,6 +2,9 @@ package com.function;
 
 import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.json.JsonMapper;
+import com.function.auth.JwtAuthService;
+import com.function.common.HttpConstants;
 import com.function.db.Db;
 import com.function.events.EventBusEG;
 import com.function.model.Evento;
@@ -21,108 +24,117 @@ import java.util.*;
 /**
  * Azure Function HTTP para CRUD de eventos.
  * Rutas:
- *  GET  /api/eventos                -> listar (join con tipoevento, usuario, rol)
- *  GET  /api/eventos/{id}           -> obtener por id
- *  POST /api/eventos                -> crear
- *  PUT  /api/eventos/{id}           -> actualizar
- *  DELETE /api/eventos/{id}         -> eliminar (solo admin)
+ * GET /api/eventos -> listar (join con tipoevento, usuario, rol)
+ * GET /api/eventos/{id} -> obtener por id
+ * POST /api/eventos -> crear
+ * PUT /api/eventos/{id} -> actualizar
+ * DELETE /api/eventos/{id} -> eliminar (solo admin)
  *
  * Valida service-token usando JwtAuthService.
  */
 public class EventosFunction {
 
-  private static final ObjectMapper MAPPER = new ObjectMapper()
-      .configure(MapperFeature.ACCEPT_CASE_INSENSITIVE_PROPERTIES, true);
+  private static final ObjectMapper MAPPER = JsonMapper.builder()
+        .configure(MapperFeature.ACCEPT_CASE_INSENSITIVE_PROPERTIES, true)
+        .build();
 
   @FunctionName("eventosRoot")
   public HttpResponseMessage eventosRoot(
-      @HttpTrigger(name = "req",
-          methods = {HttpMethod.GET, HttpMethod.POST},
-          authLevel = AuthorizationLevel.FUNCTION,
-          route = "eventos")
-      HttpRequestMessage<Optional<String>> request,
+      @HttpTrigger(name = "req", methods = { HttpMethod.GET,
+          HttpMethod.POST }, authLevel = AuthorizationLevel.FUNCTION, route = "eventos") HttpRequestMessage<Optional<String>> request,
       final ExecutionContext ctx) throws Exception {
 
     // validar token de servicio
     String authHeader = firstNonNullHeader(request, "Authorization", "authorization");
     try {
-      JWTClaimsSet claims = com.function.auth.JwtAuthService.validate(authHeader);
+      JWTClaimsSet claims = JwtAuthService.validate(authHeader);
+      String subject = claims.getSubject();
+      String email = claims.getStringClaim("preferred_username");
+
+      ctx.getLogger().info("Petición recibida por usuario: " + subject + " (" + email + ")");
     } catch (IllegalArgumentException iae) {
       return request.createResponseBuilder(HttpStatus.UNAUTHORIZED)
-          .header("Content-Type","application/json")
+          .header(HttpConstants.CONTENT_TYPE, HttpConstants.APPLICATION_JSON)
           .body("{\"error\":\"Missing or malformed Authorization header\"}")
           .build();
     } catch (Exception e) {
       ctx.getLogger().severe("Service token validation failed: " + e.getMessage());
       return request.createResponseBuilder(HttpStatus.UNAUTHORIZED)
-          .header("Content-Type","application/json")
+          .header(HttpConstants.CONTENT_TYPE, HttpConstants.APPLICATION_JSON)
           .body("{\"error\":\"Invalid service token\"}")
           .build();
     }
 
     switch (request.getHttpMethod()) {
-      case GET:  return listar(request);
-      case POST: return crear(request);
-      default:   return request.createResponseBuilder(HttpStatus.METHOD_NOT_ALLOWED).build();
+      case GET:
+        return listar(request);
+      case POST:
+        return crear(request);
+      default:
+        return request.createResponseBuilder(HttpStatus.METHOD_NOT_ALLOWED).build();
     }
   }
 
   @FunctionName("eventosById")
   public HttpResponseMessage eventosById(
-      @HttpTrigger(name = "req",
-          methods = {HttpMethod.GET, HttpMethod.PUT, HttpMethod.DELETE},
-          authLevel = AuthorizationLevel.FUNCTION,
-          route = "eventos/{id}")
-      HttpRequestMessage<Optional<String>> request,
+      @HttpTrigger(name = "req", methods = { HttpMethod.GET, HttpMethod.PUT,
+          HttpMethod.DELETE }, authLevel = AuthorizationLevel.FUNCTION, route = "eventos/{id}") HttpRequestMessage<Optional<String>> request,
       @BindingName("id") String idStr,
       final ExecutionContext ctx) throws Exception {
 
     // validar token
     String authHeader = firstNonNullHeader(request, "Authorization", "authorization");
     try {
-      com.function.auth.JwtAuthService.validate(authHeader);
+      JwtAuthService.validate(authHeader);
     } catch (IllegalArgumentException iae) {
       return request.createResponseBuilder(HttpStatus.UNAUTHORIZED)
-          .header("Content-Type","application/json")
+          .header(HttpConstants.CONTENT_TYPE, HttpConstants.APPLICATION_JSON)
           .body("{\"error\":\"Missing or malformed Authorization header\"}")
           .build();
     } catch (Exception e) {
       ctx.getLogger().severe("Service token validation failed: " + e.getMessage());
       return request.createResponseBuilder(HttpStatus.UNAUTHORIZED)
-          .header("Content-Type","application/json")
+          .header(HttpConstants.CONTENT_TYPE, HttpConstants.APPLICATION_JSON)
           .body("{\"error\":\"Invalid service token\"}")
           .build();
     }
 
     long id;
-    try { id = Long.parseLong(idStr); }
-    catch (NumberFormatException e) {
+    try {
+      id = Long.parseLong(idStr);
+    } catch (NumberFormatException e) {
       return request.createResponseBuilder(HttpStatus.BAD_REQUEST)
-          .header("Content-Type","application/json")
+          .header(HttpConstants.CONTENT_TYPE, HttpConstants.APPLICATION_JSON)
           .body("{\"error\":\"id inválido\"}")
           .build();
     }
 
     switch (request.getHttpMethod()) {
-      case GET:    return obtener(request, id);
-      case PUT:    return actualizar(request, id);
-      case DELETE: return eliminar(request, id, request);
-      default:     return request.createResponseBuilder(HttpStatus.METHOD_NOT_ALLOWED).build();
+      case GET:
+        return obtener(request, id);
+      case PUT:
+        return actualizar(request, id);
+      case DELETE:
+        return eliminar(request, id, request);
+      default:
+        return request.createResponseBuilder(HttpStatus.METHOD_NOT_ALLOWED).build();
     }
   }
 
   private HttpResponseMessage listar(HttpRequestMessage<?> req) throws Exception {
-    String sql = "SELECT e.id_eventos, e.titulo, e.descripcion, e.fechaInicio, e.fechaTermino, e.precio, e.direccion, " +
-                 "e.id_tipo_evento, te.nombre AS tipoevento_nombre, e.id_azure, u.username AS usuario_username, u.nombre_completo AS usuario_nombre, " +
-                 "e.id_rol, r.nombre_rol " +
-                 "FROM eventos e " +
-                 "LEFT JOIN tipoevento te ON e.id_tipo_evento = te.id_tipo_evento " +
-                 "LEFT JOIN usuarios u ON e.id_azure = u.id_azure " +
-                 "LEFT JOIN roles r ON e.id_rol = r.id_rol " +
-                 "ORDER BY e.fechaInicio DESC";
+    String sql = "SELECT e.id_eventos, e.titulo, e.descripcion, e.fechaInicio, e.fechaTermino, e.precio, e.direccion, "
+        +
+        "e.id_tipo_evento, te.nombre AS tipoevento_nombre, e.id_azure, u.username AS usuario_username, u.nombre_completo AS usuario_nombre, "
+        +
+        "e.id_rol, r.nombre_rol " +
+        "FROM eventos e " +
+        "LEFT JOIN tipoevento te ON e.id_tipo_evento = te.id_tipo_evento " +
+        "LEFT JOIN usuarios u ON e.id_azure = u.id_azure " +
+        "LEFT JOIN roles r ON e.id_rol = r.id_rol " +
+        "ORDER BY e.fechaInicio DESC";
     try (Connection con = Db.connect();
-         PreparedStatement ps = con.prepareStatement(sql);
-         ResultSet rs = ps.executeQuery()) {
+        PreparedStatement ps = con.prepareStatement(sql);
+        ResultSet rs = ps.executeQuery()) {
       List<Evento> out = new ArrayList<>();
       while (rs.next()) {
         out.add(mapEvento(rs));
@@ -132,19 +144,22 @@ public class EventosFunction {
   }
 
   private HttpResponseMessage obtener(HttpRequestMessage<?> req, Long id) throws Exception {
-    String sql = "SELECT e.id_eventos, e.titulo, e.descripcion, e.fechaInicio, e.fechaTermino, e.precio, e.direccion, " +
-                 "e.id_tipo_evento, te.nombre AS tipoevento_nombre, e.id_azure, u.username AS usuario_username, u.nombre_completo AS usuario_nombre, " +
-                 "e.id_rol, r.nombre_rol " +
-                 "FROM eventos e " +
-                 "LEFT JOIN tipoevento te ON e.id_tipo_evento = te.id_tipo_evento " +
-                 "LEFT JOIN usuarios u ON e.id_azure = u.id_azure " +
-                 "LEFT JOIN roles r ON e.id_rol = r.id_rol " +
-                 "WHERE e.id_eventos = ?";
+    String sql = "SELECT e.id_eventos, e.titulo, e.descripcion, e.fechaInicio, e.fechaTermino, e.precio, e.direccion, "
+        +
+        "e.id_tipo_evento, te.nombre AS tipoevento_nombre, e.id_azure, u.username AS usuario_username, u.nombre_completo AS usuario_nombre, "
+        +
+        "e.id_rol, r.nombre_rol " +
+        "FROM eventos e " +
+        "LEFT JOIN tipoevento te ON e.id_tipo_evento = te.id_tipo_evento " +
+        "LEFT JOIN usuarios u ON e.id_azure = u.id_azure " +
+        "LEFT JOIN roles r ON e.id_rol = r.id_rol " +
+        "WHERE e.id_eventos = ?";
     try (Connection con = Db.connect();
-         PreparedStatement ps = con.prepareStatement(sql)) {
+        PreparedStatement ps = con.prepareStatement(sql)) {
       ps.setLong(1, id);
       try (ResultSet rs = ps.executeQuery()) {
-        if (!rs.next()) return req.createResponseBuilder(HttpStatus.NOT_FOUND).body("{\"error\":\"No encontrado\"}").build();
+        if (!rs.next())
+          return req.createResponseBuilder(HttpStatus.NOT_FOUND).body("{\"error\":\"No encontrado\"}").build();
         Evento e = mapEvento(rs);
         return json(req, e, HttpStatus.OK);
       }
@@ -152,11 +167,11 @@ public class EventosFunction {
   }
 
   private HttpResponseMessage crear(HttpRequestMessage<Optional<String>> req) throws Exception {
-    Map<String,Object> in = MAPPER.readValue(req.getBody().orElse("{}"), Map.class);
+    Map<String, Object> in = MAPPER.readValue(req.getBody().orElse("{}"), Map.class);
 
     Long idTipoEvento = extractIdTipoEventoFromMap(in);
     String idAzure = asString(in.get("id_azure"));
-    Long idRol = in.get("id_rol") != null ? ((Number)in.get("id_rol")).longValue() : null;
+    Long idRol = in.get("id_rol") != null ? ((Number) in.get("id_rol")).longValue() : null;
     String titulo = asString(in.get("titulo"));
     String descripcion = asString(in.get("descripcion"));
     String fechaInicio = asString(in.get("fechaInicio")); // ISO
@@ -171,18 +186,33 @@ public class EventosFunction {
     }
 
     try (Connection con = Db.connect();
-         PreparedStatement ps = con.prepareStatement(
-             "INSERT INTO eventos (id_tipo_evento, id_azure, id_rol, titulo, descripcion, fechaInicio, fechaTermino, precio, direccion) VALUES (?,?,?,?,?,?,?,?,?)",
-             Statement.RETURN_GENERATED_KEYS)) {
+        PreparedStatement ps = con.prepareStatement(
+            "INSERT INTO eventos (id_tipo_evento, id_azure, id_rol, titulo, descripcion, fechaInicio, fechaTermino, precio, direccion) VALUES (?,?,?,?,?,?,?,?,?)",
+            Statement.RETURN_GENERATED_KEYS)) {
 
-      if (idTipoEvento != null) ps.setLong(1, idTipoEvento); else ps.setNull(1, Types.BIGINT);
+      if (idTipoEvento != null)
+        ps.setLong(1, idTipoEvento);
+      else
+        ps.setNull(1, Types.BIGINT);
       ps.setString(2, idAzure);
-      if (idRol != null) ps.setLong(3, idRol); else ps.setNull(3, Types.BIGINT);
+      if (idRol != null)
+        ps.setLong(3, idRol);
+      else
+        ps.setNull(3, Types.BIGINT);
       ps.setString(4, titulo);
       ps.setString(5, descripcion);
-      if (fechaInicio != null) ps.setTimestamp(6, Timestamp.from(Instant.parse(fechaInicio))); else ps.setNull(6, Types.TIMESTAMP);
-      if (fechaTermino != null) ps.setTimestamp(7, Timestamp.from(Instant.parse(fechaTermino))); else ps.setNull(7, Types.TIMESTAMP);
-      if (precio != null) ps.setBigDecimal(8, precio); else ps.setNull(8, Types.NUMERIC);
+      if (fechaInicio != null)
+        ps.setTimestamp(6, Timestamp.from(Instant.parse(fechaInicio)));
+      else
+        ps.setNull(6, Types.TIMESTAMP);
+      if (fechaTermino != null)
+        ps.setTimestamp(7, Timestamp.from(Instant.parse(fechaTermino)));
+      else
+        ps.setNull(7, Types.TIMESTAMP);
+      if (precio != null)
+        ps.setBigDecimal(8, precio);
+      else
+        ps.setNull(8, Types.NUMERIC);
       ps.setString(9, direccion);
       ps.executeUpdate();
 
@@ -198,11 +228,11 @@ public class EventosFunction {
   }
 
   private HttpResponseMessage actualizar(HttpRequestMessage<Optional<String>> req, Long id) throws Exception {
-    Map<String,Object> in = MAPPER.readValue(req.getBody().orElse("{}"), Map.class);
+    Map<String, Object> in = MAPPER.readValue(req.getBody().orElse("{}"), Map.class);
 
     Long idTipoEvento = extractIdTipoEventoFromMap(in);
     String idAzure = asString(in.get("id_azure"));
-    Long idRol = in.get("id_rol") != null ? ((Number)in.get("id_rol")).longValue() : null;
+    Long idRol = in.get("id_rol") != null ? ((Number) in.get("id_rol")).longValue() : null;
     String titulo = asString(in.get("titulo"));
     String descripcion = asString(in.get("descripcion"));
     String fechaInicio = asString(in.get("fechaInicio"));
@@ -212,36 +242,56 @@ public class EventosFunction {
     String direccion = asString(in.get("direccion"));
 
     try (Connection con = Db.connect();
-         PreparedStatement ps = con.prepareStatement(
-             "UPDATE eventos SET id_tipo_evento=?, id_azure=?, id_rol=?, titulo=?, descripcion=?, fechaInicio=?, fechaTermino=?, precio=?, direccion=? WHERE id_eventos=?")) {
+        PreparedStatement ps = con.prepareStatement(
+            "UPDATE eventos SET id_tipo_evento=?, id_azure=?, id_rol=?, titulo=?, descripcion=?, fechaInicio=?, fechaTermino=?, precio=?, direccion=? WHERE id_eventos=?")) {
 
-      if (idTipoEvento != null) ps.setLong(1, idTipoEvento); else ps.setNull(1, Types.BIGINT);
+      if (idTipoEvento != null)
+        ps.setLong(1, idTipoEvento);
+      else
+        ps.setNull(1, Types.BIGINT);
       ps.setString(2, idAzure);
-      if (idRol != null) ps.setLong(3, idRol); else ps.setNull(3, Types.BIGINT);
+      if (idRol != null)
+        ps.setLong(3, idRol);
+      else
+        ps.setNull(3, Types.BIGINT);
       ps.setString(4, titulo);
       ps.setString(5, descripcion);
-      if (fechaInicio != null) ps.setTimestamp(6, Timestamp.from(Instant.parse(fechaInicio))); else ps.setNull(6, Types.TIMESTAMP);
-      if (fechaTermino != null) ps.setTimestamp(7, Timestamp.from(Instant.parse(fechaTermino))); else ps.setNull(7, Types.TIMESTAMP);
-      if (precio != null) ps.setBigDecimal(8, precio); else ps.setNull(8, Types.NUMERIC);
+      if (fechaInicio != null)
+        ps.setTimestamp(6, Timestamp.from(Instant.parse(fechaInicio)));
+      else
+        ps.setNull(6, Types.TIMESTAMP);
+      if (fechaTermino != null)
+        ps.setTimestamp(7, Timestamp.from(Instant.parse(fechaTermino)));
+      else
+        ps.setNull(7, Types.TIMESTAMP);
+      if (precio != null)
+        ps.setBigDecimal(8, precio);
+      else
+        ps.setNull(8, Types.NUMERIC);
       ps.setString(9, direccion);
       ps.setLong(10, id);
 
       int rows = ps.executeUpdate();
-      if (rows == 0) return req.createResponseBuilder(HttpStatus.NOT_FOUND).build();
+      if (rows == 0)
+        return req.createResponseBuilder(HttpStatus.NOT_FOUND).build();
 
       EventBusEG.publish("Eventos.Evento.Actualizado", "/eventos/" + id, Map.of("id_eventos", id));
       return obtener(req, id);
     }
   }
 
-  private HttpResponseMessage eliminar(HttpRequestMessage<?> req, Long id, HttpRequestMessage<?> originalReq) throws Exception {
+  private HttpResponseMessage eliminar(HttpRequestMessage<?> req, Long id, HttpRequestMessage<?> originalReq)
+      throws Exception {
     // autorización: solo admin (según header X-User-Roles)
-    String rolesCsv = originalReq.getHeaders().getOrDefault("x-user-roles", originalReq.getHeaders().get("X-User-Roles"));
+    String rolesCsv = originalReq.getHeaders().getOrDefault("x-user-roles",
+        originalReq.getHeaders().get("X-User-Roles"));
     boolean isAdmin = rolesCsv != null && Arrays.asList(rolesCsv.split(",")).contains("admin");
-    if (!isAdmin) return originalReq.createResponseBuilder(HttpStatus.FORBIDDEN).body("{\"error\":\"Solo admin puede borrar\"}").build();
+    if (!isAdmin)
+      return originalReq.createResponseBuilder(HttpStatus.FORBIDDEN).body("{\"error\":\"Solo admin puede borrar\"}")
+          .build();
 
     try (Connection con = Db.connect();
-         PreparedStatement ps = con.prepareStatement("DELETE FROM eventos WHERE id_eventos = ?")) {
+        PreparedStatement ps = con.prepareStatement("DELETE FROM eventos WHERE id_eventos = ?")) {
       ps.setLong(1, id);
       int rows = ps.executeUpdate();
       if (rows > 0) {
@@ -301,29 +351,41 @@ public class EventosFunction {
   }
 
   // helpers
-  private static Long extractIdTipoEventoFromMap(Map<String,Object> map) {
-    if (map == null) return null;
+  private static Long extractIdTipoEventoFromMap(Map<String, Object> map) {
+    if (map == null)
+      return null;
     Object v = map.get("id_tipo_evento");
-    if (v instanceof Number) return ((Number)v).longValue();
+    if (v instanceof Number)
+      return ((Number) v).longValue();
     if (v instanceof String) {
-      try { return Long.parseLong((String)v); } catch (NumberFormatException ignored) {}
+      try {
+        return Long.parseLong((String) v);
+      } catch (NumberFormatException ignored) {
+      }
     }
     Object tipoObj = map.get("tipo");
     if (tipoObj instanceof Map) {
-      Object tid = ((Map)tipoObj).get("id_tipo_evento");
-      if (tid instanceof Number) return ((Number)tid).longValue();
+      Object tid = ((Map) tipoObj).get("id_tipo_evento");
+      if (tid instanceof Number)
+        return ((Number) tid).longValue();
       if (tid instanceof String) {
-        try { return Long.parseLong((String)tid); } catch (NumberFormatException ignored) {}
+        try {
+          return Long.parseLong((String) tid);
+        } catch (NumberFormatException ignored) {
+        }
       }
     }
     return null;
   }
 
-  private static String asString(Object o) { return o == null ? null : String.valueOf(o); }
+  private static String asString(Object o) {
+    return o == null ? null : String.valueOf(o);
+  }
 
-  private static HttpResponseMessage json(HttpRequestMessage<?> req, Object body, HttpStatus status) throws IOException {
+  private static HttpResponseMessage json(HttpRequestMessage<?> req, Object body, HttpStatus status)
+      throws IOException {
     return req.createResponseBuilder(status)
-        .header("Content-Type", "application/json")
+        .header(HttpConstants.CONTENT_TYPE, HttpConstants.APPLICATION_JSON)
         .body(MAPPER.writeValueAsString(body))
         .build();
   }
@@ -331,7 +393,8 @@ public class EventosFunction {
   private static String firstNonNullHeader(HttpRequestMessage<?> req, String... names) {
     for (String n : names) {
       String v = req.getHeaders().get(n);
-      if (v != null) return v;
+      if (v != null)
+        return v;
     }
     return null;
   }

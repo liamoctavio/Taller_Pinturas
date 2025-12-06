@@ -1,0 +1,16 @@
+{
+  "scriptFile" : "../tallerpinturas-1.0-SNAPSHOT.jar",
+  "entryPoint" : "com.function.UsuariosFunction.usuariosObrasRoot",
+  "bindings" : [ {
+    "type" : "httpTrigger",
+    "direction" : "in",
+    "name" : "req",
+    "route" : "usuarios/{id}/obras",
+    "methods" : [ "GET", "POST" ],
+    "authLevel" : "FUNCTION"
+  }, {
+    "type" : "http",
+    "direction" : "out",
+    "name" : "$return"
+  } ]
+}

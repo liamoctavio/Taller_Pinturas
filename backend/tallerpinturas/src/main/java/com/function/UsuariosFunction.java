@@ -2,6 +2,7 @@ package com.function;
 
 import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.function.db.Db;
 import com.function.model.Usuario;
 import com.function.model.RolRef;
@@ -13,24 +14,28 @@ import com.function.auth.JwtAuthService;
 import java.io.IOException;
 import java.sql.*;
 import java.util.*;
-import java.util.UUID;
+
 import org.springframework.security.crypto.bcrypt.BCrypt;
 
 /**
  * Azure Function HTTP para CRUD/registro de usuarios.
  * Rutas:
- *  GET  /api/usuarios            -> listar (sin password)
- *  GET  /api/usuarios/{id}       -> obtener por id (sin password)
- *  POST /api/usuarios            -> crear (body: id_azure? , id_rol, id_obra?, username, password, nombre_completo)
- *  PUT  /api/usuarios/{id}       -> actualizar (body: id_rol?, id_obra?, username?, password?, nombre_completo?)
- *  DELETE /api/usuarios/{id}     -> eliminar (solo admin según header X-User-Roles)
+ *  GET  /api/usuarios                       -> listar (sin password)
+ *  GET  /api/usuarios/{id}                  -> obtener por id (sin password)
+ *  GET /api/usuarios/{id}/obras             -> listar obras asociadas por id
+ *  POST /api/usuarios                       -> crear (body: id_azure? , id_rol, username, password, nombre_completo)
+ *  POST /api/usuarios/{id}/obras            -> vincular obra a usuario
+ *  PUT  /api/usuarios/{id}                  -> actualizar (body: id_rol?, username?, password?, nombre_completo?)
+ *  DELETE /api/usuarios/{id}                -> eliminar (solo admin según header X-User-Roles)
+ *  DELETE /api/usuarios/{id}/obras/{obraId} -> desvincular obra del usuario
  *
  * Requiere JwtAuthService.validate(authHeader) para validar token de servicio.
  */
 public class UsuariosFunction {
 
-  private static final ObjectMapper MAPPER = new ObjectMapper()
-      .configure(MapperFeature.ACCEPT_CASE_INSENSITIVE_PROPERTIES, true);
+  private static final ObjectMapper MAPPER = JsonMapper.builder()
+        .configure(MapperFeature.ACCEPT_CASE_INSENSITIVE_PROPERTIES, true)
+        .build();
 
   @FunctionName("usuariosRoot")
   public HttpResponseMessage usuariosRoot(
@@ -105,9 +110,90 @@ public class UsuariosFunction {
     }
   }
 
-  // listar
+   @FunctionName("usuariosObrasRoot")
+  public HttpResponseMessage usuariosObrasRoot(
+      @HttpTrigger(name = "req",
+          methods = {HttpMethod.GET, HttpMethod.POST},
+          authLevel = AuthorizationLevel.FUNCTION,
+          route = "usuarios/{id}/obras")
+      HttpRequestMessage<Optional<String>> request,
+      @BindingName("id") String idAzure,
+      final ExecutionContext ctx) throws Exception {
+
+    // validar service token
+    String authHeader = firstNonNullHeader(request, "Authorization", "authorization");
+    try {
+      JwtAuthService.validate(authHeader);
+    } catch (IllegalArgumentException iae) {
+      return request.createResponseBuilder(HttpStatus.UNAUTHORIZED)
+          .header("Content-Type","application/json")
+          .body("{\"error\":\"Missing or malformed Authorization header\"}")
+          .build();
+    } catch (Exception e) {
+      ctx.getLogger().severe("Service token validation failed: " + e.getMessage());
+      return request.createResponseBuilder(HttpStatus.UNAUTHORIZED)
+          .header("Content-Type","application/json")
+          .body("{\"error\":\"Invalid service token\"}")
+          .build();
+    }
+
+    if (idAzure == null || idAzure.isBlank()) {
+      return request.createResponseBuilder(HttpStatus.BAD_REQUEST).body("{\"error\":\"id requerido\"}").build();
+    }
+
+    String method = request.getHttpMethod().name();
+    switch (method) {
+      case "GET": return listarObrasDeUsuario(request, idAzure);
+      case "POST": return vincularObraAUsuario(request, idAzure);
+      default: return request.createResponseBuilder(HttpStatus.METHOD_NOT_ALLOWED).build();
+    }
+  }
+
+  @FunctionName("usuariosObrasById")
+  public HttpResponseMessage usuariosObrasById(
+      @HttpTrigger(name = "req",
+          methods = {HttpMethod.DELETE},
+          authLevel = AuthorizationLevel.FUNCTION,
+          route = "usuarios/{id}/obras/{obraId}")
+      HttpRequestMessage<Optional<String>> request,
+      @BindingName("id") String idAzure,
+      @BindingName("obraId") String obraIdStr,
+      final ExecutionContext ctx) throws Exception {
+
+    // validar service token
+    String authHeader = firstNonNullHeader(request, "Authorization", "authorization");
+    try {
+      JwtAuthService.validate(authHeader);
+    } catch (IllegalArgumentException iae) {
+      return request.createResponseBuilder(HttpStatus.UNAUTHORIZED)
+          .header("Content-Type","application/json")
+          .body("{\"error\":\"Missing or malformed Authorization header\"}")
+          .build();
+    } catch (Exception e) {
+      ctx.getLogger().severe("Service token validation failed: " + e.getMessage());
+      return request.createResponseBuilder(HttpStatus.UNAUTHORIZED)
+          .header("Content-Type","application/json")
+          .body("{\"error\":\"Invalid service token\"}")
+          .build();
+    }
+
+    if (idAzure == null || idAzure.isBlank() || obraIdStr == null || obraIdStr.isBlank()) {
+      return request.createResponseBuilder(HttpStatus.BAD_REQUEST).body("{\"error\":\"id y obraId requeridos\"}").build();
+    }
+
+    long obraId;
+    try {
+      obraId = Long.parseLong(obraIdStr);
+    } catch (NumberFormatException e) {
+      return request.createResponseBuilder(HttpStatus.BAD_REQUEST).body("{\"error\":\"obraId invalido\"}").build();
+    }
+
+    return desvincularObraDeUsuario(request, idAzure, obraId);
+  }
+
+  // listar (sin id_obra)
   private HttpResponseMessage listar(HttpRequestMessage<?> req) throws Exception {
-    String sql = "SELECT u.id_azure, u.id_rol, r.nombre_rol, u.id_obra, u.username, u.nombre_completo " +
+    String sql = "SELECT u.id_azure, u.id_rol, r.nombre_rol, u.username, u.nombre_completo " +
                  "FROM usuarios u LEFT JOIN roles r ON u.id_rol = r.id_rol ORDER BY u.username";
     try (Connection con = Db.connect();
          PreparedStatement ps = con.prepareStatement(sql);
@@ -121,9 +207,9 @@ public class UsuariosFunction {
     }
   }
 
-  // obtener por id_azure
+  // obtener por id_azure (sin id_obra)
   private HttpResponseMessage obtener(HttpRequestMessage<?> req, String idAzure) throws Exception {
-    String sql = "SELECT u.id_azure, u.id_rol, r.nombre_rol, u.id_obra, u.username, u.nombre_completo " +
+    String sql = "SELECT u.id_azure, u.id_rol, r.nombre_rol, u.username, u.nombre_completo " +
                  "FROM usuarios u LEFT JOIN roles r ON u.id_rol = r.id_rol WHERE u.id_azure = ?";
     try (Connection con = Db.connect();
          PreparedStatement ps = con.prepareStatement(sql)) {
@@ -138,13 +224,12 @@ public class UsuariosFunction {
     }
   }
 
-  // crear
+  // crear (sin id_obra en usuarios)
   private HttpResponseMessage crear(HttpRequestMessage<Optional<String>> req) throws Exception {
     Map<String,Object> in = MAPPER.readValue(req.getBody().orElse("{}"), Map.class);
 
     String idAzureInput = asString(in.get("id_azure"));
     Long idRol = extractIdRolFromMap(in);
-    Long idObra = in.get("id_obra") != null ? ((Number)in.get("id_obra")).longValue() : null;
     String username = asString(in.get("username"));
     String password = asString(in.get("password"));
     String nombreCompleto = asString(in.get("nombre_completo"));
@@ -158,13 +243,12 @@ public class UsuariosFunction {
 
     try (Connection con = Db.connect();
          PreparedStatement ps = con.prepareStatement(
-             "INSERT INTO usuarios (id_azure, id_rol, id_obra, username, password, nombre_completo) VALUES (?,?,?,?,?,?)")) {
+             "INSERT INTO usuarios (id_azure, id_rol, username, password, nombre_completo) VALUES (?,?,?,?,?)")) {
       ps.setObject(1, idAzure);
       ps.setLong(2, idRol);
-      if (idObra != null) ps.setLong(3, idObra); else ps.setNull(3, Types.BIGINT);
-      ps.setString(4, username);
-      ps.setString(5, hashed);
-      ps.setString(6, nombreCompleto);
+      ps.setString(3, username);
+      ps.setString(4, hashed);
+      ps.setString(5, nombreCompleto);
       ps.executeUpdate();
       return obtener(req, idAzure.toString());
     } catch (SQLException sq) {
@@ -175,12 +259,11 @@ public class UsuariosFunction {
     }
   }
 
-  // actualizar
+  // actualizar (sin id_obra)
   private HttpResponseMessage actualizar(HttpRequestMessage<Optional<String>> req, String idAzureStr) throws Exception {
     Map<String,Object> in = MAPPER.readValue(req.getBody().orElse("{}"), Map.class);
 
     Long idRol = extractIdRolFromMap(in);
-    Long idObra = in.get("id_obra") != null ? ((Number)in.get("id_obra")).longValue() : null;
     String username = asString(in.get("username"));
     String password = asString(in.get("password"));
     String nombreCompleto = asString(in.get("nombre_completo"));
@@ -188,7 +271,6 @@ public class UsuariosFunction {
     StringBuilder sb = new StringBuilder("UPDATE usuarios SET ");
     List<Object> params = new ArrayList<>();
     if (idRol != null) { sb.append("id_rol = ?, "); params.add(idRol); }
-    if (idObra != null) { sb.append("id_obra = ?, "); params.add(idObra); }
     if (username != null) { sb.append("username = ?, "); params.add(username); }
     if (password != null) { String hashed = BCrypt.hashpw(password, BCrypt.gensalt(12)); sb.append("password = ?, "); params.add(hashed); }
     if (nombreCompleto != null) { sb.append("nombre_completo = ?, "); params.add(nombreCompleto); }
@@ -236,7 +318,73 @@ public class UsuariosFunction {
     }
   }
 
-  // mapea ResultSet -> Usuario (sin password)
+  // -----------------------
+  // Relación usuarios <-> obras (endpoints auxiliares que puedes exponer con rutas separadas)
+  // -----------------------
+
+  // Listar obras de un usuario: GET /api/usuarios/{id}/obras
+  private HttpResponseMessage listarObrasDeUsuario(HttpRequestMessage<?> req, String idAzure) throws Exception {
+    String sql = "SELECT o.id_obra, o.id_tipo_obra, t.nombre AS tipo_nombre, o.titulo, o.descripcion " +
+                 "FROM obras o JOIN usuarios_obras uo ON o.id_obra = uo.id_obra " +
+                 "LEFT JOIN tipobra t ON o.id_tipo_obra = t.id_tipo_obra " +
+                 "WHERE uo.id_azure = ? ORDER BY uo.es_principal DESC, o.id_obra";
+    try (Connection con = Db.connect();
+         PreparedStatement ps = con.prepareStatement(sql)) {
+      ps.setObject(1, UUID.fromString(idAzure));
+      try (ResultSet rs = ps.executeQuery()) {
+        List<Map<String,Object>> out = new ArrayList<>();
+        while (rs.next()) {
+          Map<String,Object> m = new HashMap<>();
+          m.put("id_obra", rs.getLong("id_obra"));
+          m.put("id_tipo_obra", rs.getLong("id_tipo_obra"));
+          m.put("tipo_nombre", rs.getString("tipo_nombre"));
+          m.put("titulo", rs.getString("titulo"));
+          m.put("descripcion", rs.getString("descripcion"));
+          out.add(m);
+        }
+        return json(req, out, HttpStatus.OK);
+      }
+    } catch (IllegalArgumentException iae) {
+      return req.createResponseBuilder(HttpStatus.BAD_REQUEST).body("{\"error\":\"id_azure invalido\"}").build();
+    }
+  }
+
+  // Vincular obra a usuario: POST /api/usuarios/{id}/obras  body: { "id_obra": 123, "es_principal": true }
+  private HttpResponseMessage vincularObraAUsuario(HttpRequestMessage<Optional<String>> req, String idAzure) throws Exception {
+    Map<String,Object> body = MAPPER.readValue(req.getBody().orElse("{}"), Map.class);
+    Number obraIdN = (Number) body.get("id_obra");
+    Boolean esPrincipal = body.get("es_principal") != null ? (Boolean)body.get("es_principal") : Boolean.FALSE;
+    if (obraIdN == null) return req.createResponseBuilder(HttpStatus.BAD_REQUEST).body("{\"error\":\"id_obra requerido\"}").build();
+    long obraId = obraIdN.longValue();
+
+    try (Connection con = Db.connect();
+         PreparedStatement ps = con.prepareStatement(
+             "INSERT INTO usuarios_obras (id_azure, id_obra, es_principal) VALUES (?, ?, ?) " +
+             "ON CONFLICT (id_azure, id_obra) DO UPDATE SET es_principal = EXCLUDED.es_principal")) {
+      ps.setObject(1, UUID.fromString(idAzure));
+      ps.setLong(2, obraId);
+      ps.setBoolean(3, esPrincipal);
+      ps.executeUpdate();
+      return req.createResponseBuilder(HttpStatus.NO_CONTENT).build();
+    } catch (IllegalArgumentException iae) {
+      return req.createResponseBuilder(HttpStatus.BAD_REQUEST).body("{\"error\":\"id_azure o id_obra invalido\"}").build();
+    }
+  }
+
+  // Desvincular obra de usuario: DELETE /api/usuarios/{id}/obras/{obraId}
+  private HttpResponseMessage desvincularObraDeUsuario(HttpRequestMessage<?> req, String idAzure, Long obraId) throws Exception {
+    try (Connection con = Db.connect();
+         PreparedStatement ps = con.prepareStatement("DELETE FROM usuarios_obras WHERE id_azure = ? AND id_obra = ?")) {
+      ps.setObject(1, UUID.fromString(idAzure));
+      ps.setLong(2, obraId);
+      int rows = ps.executeUpdate();
+      return req.createResponseBuilder(rows > 0 ? HttpStatus.NO_CONTENT : HttpStatus.NOT_FOUND).build();
+    } catch (IllegalArgumentException iae) {
+      return req.createResponseBuilder(HttpStatus.BAD_REQUEST).body("{\"error\":\"id_azure o id_obra invalido\"}").build();
+    }
+  }
+
+  // mapea ResultSet -> Usuario (sin password, sin id_obra)
   private static Usuario mapUsuario(ResultSet rs) throws SQLException {
     Usuario u = new Usuario();
     u.setId_azure(rs.getString("id_azure"));
@@ -251,9 +399,6 @@ public class UsuariosFunction {
       u.setRol(null);
       u.setId_rol(null);
     }
-    Object idObraObj = rs.getObject("id_obra");
-    if (idObraObj != null) u.setId_obra(rs.getLong("id_obra"));
-    else u.setId_obra(null);
     u.setUsername(rs.getString("username"));
     u.setNombre_completo(rs.getString("nombre_completo"));
     return u;

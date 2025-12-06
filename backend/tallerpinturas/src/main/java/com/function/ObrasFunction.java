@@ -2,6 +2,7 @@ package com.function;
 
 import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.function.db.Db;
 import com.function.events.EventBusEG;
 import com.function.model.Obra;
@@ -13,7 +14,6 @@ import com.nimbusds.jwt.JWTClaimsSet;
 import java.io.IOException;
 import java.sql.*;
 import java.util.*;
-import java.util.Base64;
 
 /**
  * Azure Function HTTP para CRUD de obras.
@@ -32,8 +32,9 @@ import java.util.Base64;
  */
 public class ObrasFunction {
 
-  private static final ObjectMapper MAPPER = new ObjectMapper()
-      .configure(MapperFeature.ACCEPT_CASE_INSENSITIVE_PROPERTIES, true);
+  private static final ObjectMapper MAPPER = JsonMapper.builder()
+        .configure(MapperFeature.ACCEPT_CASE_INSENSITIVE_PROPERTIES, true)
+        .build();
 
   @FunctionName("obrasRoot")
   public HttpResponseMessage obrasRoot(

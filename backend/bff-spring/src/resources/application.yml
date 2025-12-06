@@ -1,18 +1,11 @@
-spring:
-  security:
-    oauth2:
-      client:
-        registration:
-          bff-client:
-            client-id: <BFF_CLIENT_ID>
-            client-secret: <BFF_CLIENT_SECRET>
-            authorization-grant-type: client_credentials
-            scope: .default
-        provider:
-          azure:
-            token-uri: https://login.microsoftonline.com/<TENANT_ID>/oauth2/v2.0/token
 server:
   port: 8080
 # TODO: crear las funciones en azure y asignar las variables
 functions:
-  tallerPinturasBaseUrl: ${TALLER_PINTURAS:}
+  eventosBaseUrl: ${FN_EVENTOS_BASEURL:https://tallerpinturas.azurewebsites.net/api/eventos}
+  obrasBaseUrl: ${FN_OBRAS_BASEURL:https://tallerpinturas.azurewebsites.net/api/obras}
+  usuariosBaseUrl: ${FN_USUARIOS_BASEURL:https://tallerpinturas.azurewebsites.net/api/usuarios}
+
+service:
+  auth:
+    token: ${SERVICE_AUTH_TOKEN:} 

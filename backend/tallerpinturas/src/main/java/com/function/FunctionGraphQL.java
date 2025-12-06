@@ -53,7 +53,7 @@ public class FunctionGraphQL {
     final String API_TALLER_PINTURAS = resolveBase.apply("API_TALLER_PINTURAS");
 
     if (API_TALLER_PINTURAS.isBlank() || API_TALLER_PINTURAS.isBlank() || API_TALLER_PINTURAS.isBlank()) {
-      throw new IllegalStateException("Falta configuración de API_*_BASE. Define API_TALLER_PINTURAS, API_TALLER_PINTURAS y API_TALLER_PINTURAS (puedes usar 'self' en Azure o 'http://localhost:7071' localmente).");
+      throw new IllegalStateException("Falta configuración de API_*_BASE. Define API_TALLER_PINTURAS");
     }
 
     final String URL_OBRAS = joinUrl(API_TALLER_PINTURAS, "/api/obras");

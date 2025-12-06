@@ -5,7 +5,7 @@ public class Obra {
   private TipoObra tipo;
   private String titulo;
   private String descripcion;
-    // no incluimos imagen en getter/setter por defecto para evitar payloads grandes,
+  // no incluimos imagen en getter/setter por defecto para evitar payloads grandes,
   // pero lo permitimos en creación/actualización por campo imagenBase64
   private String imagenBase64;
 
