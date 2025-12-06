@@ -1,0 +1,20 @@
+spring:
+  security:
+    oauth2:
+      client:
+        registration:
+          bff-client:
+            provider: azure
+            client-id: "dummy-id"
+            client-secret: "dummy-secret"
+            authorization-grant-type: client_credentials
+            scope: .default
+        provider:
+          azure:
+            token-uri: "https://login.microsoftonline.com/common/oauth2/v2.0/token"
+
+server:
+  port: 8080
+
+functions:
+  tallerPinturasBaseUrl: ${TALLER_PINTURAS:http://localhost:7071/api}

@@ -58,10 +58,19 @@ public class UsuariosFunction {
           .build();
     }
 
-    switch (request.getHttpMethod()) {
-      case GET:  return listar(request);
-      case POST: return crear(request);
-      default:   return request.createResponseBuilder(HttpStatus.METHOD_NOT_ALLOWED).build();
+    try {
+      switch (request.getHttpMethod()) {
+        case GET:  return listar(request);
+        case POST: return crear(request);
+        default:   return request.createResponseBuilder(HttpStatus.METHOD_NOT_ALLOWED).build();
+      }
+    } catch (Exception e) {
+      ctx.getLogger().severe("Unhandled error in usuariosRoot: " + e.toString());
+      String msg = e.getMessage() != null ? e.getMessage() : e.toString();
+      return request.createResponseBuilder(HttpStatus.INTERNAL_SERVER_ERROR)
+          .header("Content-Type","application/json")
+          .body("{\"error\":\"" + msg.replaceAll("\"","\\\"") + "\"}")
+          .build();
     }
   }
 
@@ -96,12 +105,21 @@ public class UsuariosFunction {
       return request.createResponseBuilder(HttpStatus.BAD_REQUEST).body("{\"error\":\"id requerido\"}").build();
     }
 
-    String method = request.getHttpMethod().name();
-    switch (method) {
-      case "GET": return obtener(request, idPath);
-      case "PUT": return actualizar(request, idPath);
-      case "DELETE": return eliminar(request, idPath, request);
-      default: return request.createResponseBuilder(HttpStatus.METHOD_NOT_ALLOWED).build();
+    try {
+      String method = request.getHttpMethod().name();
+      switch (method) {
+        case "GET": return obtener(request, idPath);
+        case "PUT": return actualizar(request, idPath);
+        case "DELETE": return eliminar(request, idPath, request);
+        default: return request.createResponseBuilder(HttpStatus.METHOD_NOT_ALLOWED).build();
+      }
+    } catch (Exception e) {
+      ctx.getLogger().severe("Unhandled error in usuariosById: " + e.toString());
+      String msg = e.getMessage() != null ? e.getMessage() : e.toString();
+      return request.createResponseBuilder(HttpStatus.INTERNAL_SERVER_ERROR)
+          .header("Content-Type","application/json")
+          .body("{\"error\":\"" + msg.replaceAll("\"","\\\"") + "\"}")
+          .build();
     }
   }
 
@@ -251,9 +269,22 @@ public class UsuariosFunction {
       u.setRol(null);
       u.setId_rol(null);
     }
-    Object idObraObj = rs.getObject("id_obra");
-    if (idObraObj != null) u.setId_obra(rs.getLong("id_obra"));
-    else u.setId_obra(null);
+    // id_obra puede haber sido removida/renombrada en la BD.
+    // Intentamos leerla de forma segura: si no existe, la dejamos null.
+    Long idObraVal = null;
+    try {
+      int col = rs.findColumn("id_obra");
+      Object idObraObj = rs.getObject(col);
+      if (idObraObj != null) {
+        if (idObraObj instanceof Number) idObraVal = ((Number) idObraObj).longValue();
+        else {
+          try { idObraVal = Long.parseLong(String.valueOf(idObraObj)); } catch (NumberFormatException ignored) { idObraVal = null; }
+        }
+      }
+    } catch (SQLException ignored) {
+      // columna no existe -> dejamos id_obra en null
+    }
+    u.setId_obra(idObraVal);
     u.setUsername(rs.getString("username"));
     u.setNombre_completo(rs.getString("nombre_completo"));
     return u;

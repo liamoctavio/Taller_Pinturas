@@ -1,7 +1,12 @@
 {
   "IsEncrypted": false,
   "Values": {
-    "AzureWebJobsStorage": "",
-    "FUNCTIONS_WORKER_RUNTIME": "java"
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "FUNCTIONS_WORKER_RUNTIME": "java",
+    "DB_URL":  "jdbc:postgresql://tallerpinturas.c4kesqp75aym.us-east-1.rds.amazonaws.com:5432/tallerpinturas?sslmode=require",
+    "DB_USER": "postgres",
+    "DB_PASS": "BQ0JoLKl5IGFer63j35y",
+    "AAD_TENANT_ID": "dummy",
+    "API_APP_ID_URI": "dummy"
   }
 }
