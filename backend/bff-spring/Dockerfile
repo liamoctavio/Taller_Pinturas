@@ -1,5 +1,8 @@
-FROM maven:3.9.4-eclipse-temurin-21 as builder
-WORKDIR /app
+# ------------------
+# Build stage (Java 21)
+# ------------------
+FROM maven:3.9.4-eclipse-temurin-21 AS builder
+WORKDIR /workspace
 
 COPY pom.xml .
 RUN mvn -B -e -DskipTests dependency:go-offline
@@ -7,14 +10,22 @@ RUN mvn -B -e -DskipTests dependency:go-offline
 COPY src ./src
 RUN mvn -B -DskipTests package
 
-FROM eclipse-temurin:21-jre-alpine
-ENV JAVA_OPTS=""
-WORKDIR /opt/app
-COPY --from=build /app/target/bff-spring-*.jar app.jar
-EXPOSE 8080
-ENTRYPOINT ["sh","-c","java $JAVA_OPTS -jar app.jar"]
+# ------------------
+# Runtime stage (Java 21, Alpine)
+# ------------------
+FROM eclipse-temurin:21-jre-alpine AS runtime
 
-ENV JAVA_OPTS="-Xms256m -Xmx512m -XX:+UseG1GC"
-ENV SPRING_PROFILES_ACTIVE=prod
+# crear usuario no-root
+RUN addgroup -S app && adduser -S -G app app
+USER app
+
+WORKDIR /app
+
+COPY --from=builder /workspace/target/tallerpinturas-*-SNAPSHOT.jar ./app.jar
+
+ENV JAVA_OPTS=""
 ENV SERVER_PORT=8080
 
+EXPOSE 8080
+
+ENTRYPOINT ["/bin/sh","-c","java $JAVA_OPTS -jar /app/app.jar"]
