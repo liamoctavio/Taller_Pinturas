@@ -1,0 +1,14 @@
+version: "3.8"
+services:
+ 
+  bff:
+    image: liamoctavio/bff-spring:latest
+    environment:
+      - FN_EVENTOS_BASEURL=https://tallerpinturas.azurewebsites.net/api/eventos
+      - FN_OBRAS_BASEURL=https://tallerpinturas.azurewebsites.net/api/obras
+      - FN_USUARIOS_BASEURL=https://tallerpinturas.azurewebsites.net/api/usuarios} 
+      - FN_GRAPHQL_BASEURL=https://tallerpinturas.azurewebsites.net/api/graphql
+
+    ports:
+      - "8080:8080"
+  

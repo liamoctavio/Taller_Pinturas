@@ -17,8 +17,12 @@ public class WebClientConfig {
   @Value("${functions.usuariosBaseUrl}")
   private String usuariosBase;
 
+  @Value("${functions.graphqlBaseUrl}")
+  private String graphqlBase;
+
   @Value("${service.auth.token:}")
-  private String serviceAuthToken;
+  private String serviceAuthToken;   
+
 
   private WebClient.Builder baseBuilder(String base) {
     WebClient.Builder b = WebClient.builder().baseUrl(base);
@@ -49,7 +53,7 @@ public class WebClientConfig {
 
   @Bean
   public WebClient graphqlClient() {
-    return baseBuilder(obrasBase).build();
+    return baseBuilder(graphqlBase).build();
   }
 }
 
