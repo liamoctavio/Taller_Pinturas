@@ -7,10 +7,8 @@ import java.util.Map;
 public final class HttpForwarder {
   private HttpForwarder() {}
 
-  // copia sólo headers que nos interesan del cliente (más seguros)
   public static void copyAuthHeaders(HttpHeaders dest, Map<String,String> incoming) {
     if (incoming == null) return;
-    // Prioriza Authorization si viene
     String auth = incoming.getOrDefault("Authorization", incoming.get("authorization"));
     if (StringUtils.hasText(auth)) dest.set("Authorization", auth);
 
@@ -20,7 +18,6 @@ public final class HttpForwarder {
     String roles = incoming.getOrDefault("x-user-roles", incoming.get("X-User-Roles"));
     if (StringUtils.hasText(roles)) dest.set("x-user-roles", roles);
 
-    // Content-Type if provided
     String ct = incoming.getOrDefault("Content-Type", incoming.get("content-type"));
     if (StringUtils.hasText(ct)) dest.set(HttpHeaders.CONTENT_TYPE, ct);
     else dest.set(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE);

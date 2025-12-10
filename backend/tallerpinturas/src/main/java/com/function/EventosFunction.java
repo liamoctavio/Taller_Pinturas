@@ -55,13 +55,13 @@ public class EventosFunction {
     } catch (IllegalArgumentException iae) {
       return request.createResponseBuilder(HttpStatus.UNAUTHORIZED)
           .header(HttpConstants.CONTENT_TYPE, HttpConstants.APPLICATION_JSON)
-          .body("{\"error\":\"Missing or malformed Authorization header\"}")
+          .body(HttpConstants.ERROR_MISSING_AUTH)
           .build();
     } catch (Exception e) {
       ctx.getLogger().severe("Service token validation failed: " + e.getMessage());
       return request.createResponseBuilder(HttpStatus.UNAUTHORIZED)
           .header(HttpConstants.CONTENT_TYPE, HttpConstants.APPLICATION_JSON)
-          .body("{\"error\":\"Invalid service token\"}")
+          .body(HttpConstants.ERROR_INVALID_AUTH)
           .build();
     }
 
@@ -89,13 +89,13 @@ public class EventosFunction {
     } catch (IllegalArgumentException iae) {
       return request.createResponseBuilder(HttpStatus.UNAUTHORIZED)
           .header(HttpConstants.CONTENT_TYPE, HttpConstants.APPLICATION_JSON)
-          .body("{\"error\":\"Missing or malformed Authorization header\"}")
+          .body(HttpConstants.ERROR_MISSING_AUTH)
           .build();
     } catch (Exception e) {
       ctx.getLogger().severe("Service token validation failed: " + e.getMessage());
       return request.createResponseBuilder(HttpStatus.UNAUTHORIZED)
           .header(HttpConstants.CONTENT_TYPE, HttpConstants.APPLICATION_JSON)
-          .body("{\"error\":\"Invalid service token\"}")
+          .body(HttpConstants.ERROR_INVALID_AUTH)
           .build();
     }
 
