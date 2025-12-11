@@ -101,4 +101,14 @@ public class UsuariosController {
         .exchangeToMono(resp -> Mono.just(ResponseEntity.status(resp.statusCode()).build()));
   }
 
+  // Sincronizar usuario (Login) ESTO ES PARA EL LOGIN 
+    @PostMapping("/usuarios/sync")
+    public Mono<Object> syncUsuario(@RequestBody Object usuarioJson) {
+        return usuariosClient.post()
+                .uri("/api/usuarios/sync")
+                .bodyValue(usuarioJson)
+                .retrieve()
+                .bodyToMono(Object.class);
+    }
+  
 }

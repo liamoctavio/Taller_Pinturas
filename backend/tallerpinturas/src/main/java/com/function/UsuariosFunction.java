@@ -41,7 +41,7 @@ public class UsuariosFunction {
   public HttpResponseMessage usuariosRoot(
       @HttpTrigger(name = "req",
           methods = {HttpMethod.GET, HttpMethod.POST},
-          authLevel = AuthorizationLevel.FUNCTION,
+          authLevel = AuthorizationLevel.ANONYMOUS,
           route = "usuarios")
       HttpRequestMessage<Optional<String>> request,
       final ExecutionContext ctx) throws Exception {
@@ -74,7 +74,7 @@ public class UsuariosFunction {
   public HttpResponseMessage usuariosById(
       @HttpTrigger(name = "req",
           methods = {HttpMethod.GET, HttpMethod.PUT, HttpMethod.DELETE},
-          authLevel = AuthorizationLevel.FUNCTION,
+          authLevel = AuthorizationLevel.ANONYMOUS,
           route = "usuarios/{id}")
       HttpRequestMessage<Optional<String>> request,
       @BindingName("id") String idPath,
@@ -114,7 +114,7 @@ public class UsuariosFunction {
   public HttpResponseMessage usuariosObrasRoot(
       @HttpTrigger(name = "req",
           methods = {HttpMethod.GET, HttpMethod.POST},
-          authLevel = AuthorizationLevel.FUNCTION,
+          authLevel = AuthorizationLevel.ANONYMOUS,
           route = "usuarios/{id}/obras")
       HttpRequestMessage<Optional<String>> request,
       @BindingName("id") String idAzure,
@@ -153,7 +153,7 @@ public class UsuariosFunction {
   public HttpResponseMessage usuariosObrasById(
       @HttpTrigger(name = "req",
           methods = {HttpMethod.DELETE},
-          authLevel = AuthorizationLevel.FUNCTION,
+          authLevel = AuthorizationLevel.ANONYMOUS,
           route = "usuarios/{id}/obras/{obraId}")
       HttpRequestMessage<Optional<String>> request,
       @BindingName("id") String idAzure,
@@ -190,6 +190,78 @@ public class UsuariosFunction {
 
     return desvincularObraDeUsuario(request, idAzure, obraId);
   }
+
+  /**
+     * Sincronización de Usuario (Login Silencioso).
+     * Ruta: POST /api/usuarios/sync
+     * Body esperado: { "id_azure": "uuid...", "username": "correo...", "nombre_completo": "..." }
+     */
+    @FunctionName("usuariosSync")
+    public HttpResponseMessage usuariosSync(
+            @HttpTrigger(name = "req",
+                    methods = {HttpMethod.POST},
+                    authLevel = AuthorizationLevel.ANONYMOUS, // O ANONYMOUS si controlas la seguridad en el BFF
+                    route = "usuarios/sync")
+            HttpRequestMessage<Optional<String>> request,
+            final ExecutionContext ctx) throws Exception {
+
+        // 1. Leer el body enviado desde Angular
+        Map<String, Object> body = MAPPER.readValue(request.getBody().orElse("{}"), Map.class);
+        
+        String idAzureStr = asString(body.get("id_azure"));
+        String username = asString(body.get("username")); // Correo
+        String nombre = asString(body.get("nombre_completo"));
+
+        // Validar datos mínimos
+        if (idAzureStr == null || username == null) {
+            return request.createResponseBuilder(HttpStatus.BAD_REQUEST)
+                    .body("{\"error\": \"Faltan datos (id_azure, username)\"}")
+                    .build();
+        }
+
+        try (Connection con = Db.connect()) {
+            UUID uuid = UUID.fromString(idAzureStr);
+
+            // 2. Verificar si el usuario YA existe
+            boolean existe = false;
+            // OJO: Asumo que id_rol = 3 es "Visitante". CAMBIA ESTE ID según tu tabla roles.
+            long idRolPorDefecto = 3; 
+
+            try (PreparedStatement psCheck = con.prepareStatement("SELECT 1 FROM usuarios WHERE id_azure = ?")) {
+                psCheck.setObject(1, uuid);
+                try (ResultSet rs = psCheck.executeQuery()) {
+                    if (rs.next()) existe = true;
+                }
+            }
+
+            // 3. Si NO existe, lo insertamos
+            if (!existe) {
+                
+                // Insertamos con contraseña "dummy" porque Azure maneja la real
+                String sql = "INSERT INTO usuarios (id_azure, id_rol, username, password, nombre_completo) VALUES (?, ?, ?, 'azure-oauth', ?)";
+                try (PreparedStatement ps = con.prepareStatement(sql)) {
+                    ps.setObject(1, uuid);
+                    ps.setLong(2,2L); 
+                    ps.setString(3, username);
+                    ps.setString(4, nombre != null ? nombre : username); // Si no hay nombre, usa el correo
+                    ps.executeUpdate();
+                }
+                ctx.getLogger().info("Usuario nuevo sincronizado: " + username);
+            } else {
+                ctx.getLogger().info("Usuario ya existía: " + username);
+            }
+
+            return request.createResponseBuilder(HttpStatus.OK)
+                    .header("Content-Type", "application/json") // <--- ESTO FALTAba
+                    .body("{\"status\":\"synced\"}")
+                    .build();
+            // return request.createResponseBuilder(HttpStatus.OK).body("{\"status\":\"synced\"}").build();
+
+        } catch (Exception e) {
+            ctx.getLogger().severe("Error sync: " + e.getMessage());
+            return request.createResponseBuilder(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage()).build();
+        }
+    }
 
   // listar (sin id_obra)
   private HttpResponseMessage listar(HttpRequestMessage<?> req) throws Exception {
