@@ -41,7 +41,7 @@ public class EventosFunction {
   @FunctionName("eventosRoot")
   public HttpResponseMessage eventosRoot(
       @HttpTrigger(name = "req", methods = { HttpMethod.GET,
-          HttpMethod.POST }, authLevel = AuthorizationLevel.FUNCTION, route = "eventos") HttpRequestMessage<Optional<String>> request,
+          HttpMethod.POST }, authLevel = AuthorizationLevel.ANONYMOUS, route = "eventos") HttpRequestMessage<Optional<String>> request,
       final ExecutionContext ctx) throws Exception {
 
     // validar token de servicio
@@ -78,7 +78,7 @@ public class EventosFunction {
   @FunctionName("eventosById")
   public HttpResponseMessage eventosById(
       @HttpTrigger(name = "req", methods = { HttpMethod.GET, HttpMethod.PUT,
-          HttpMethod.DELETE }, authLevel = AuthorizationLevel.FUNCTION, route = "eventos/{id}") HttpRequestMessage<Optional<String>> request,
+          HttpMethod.DELETE }, authLevel = AuthorizationLevel.ANONYMOUS, route = "eventos/{id}") HttpRequestMessage<Optional<String>> request,
       @BindingName("id") String idStr,
       final ExecutionContext ctx) throws Exception {
 

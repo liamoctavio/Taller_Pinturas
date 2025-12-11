@@ -290,7 +290,7 @@ public class FunctionGraphQL {
 
   @FunctionName("graphql")
   public HttpResponseMessage run(
-      @HttpTrigger(name = "req", methods = {HttpMethod.POST}, authLevel = AuthorizationLevel.FUNCTION, route = "graphql")
+      @HttpTrigger(name = "req", methods = {HttpMethod.POST}, authLevel = AuthorizationLevel.ANONYMOUS, route = "graphql")
       HttpRequestMessage<Map<String, Object>> request,
       final ExecutionContext context) {
 

@@ -40,7 +40,7 @@ public class ObrasFunction {
   public HttpResponseMessage obrasRoot(
       @HttpTrigger(name = "req",
           methods = {HttpMethod.GET, HttpMethod.POST},
-          authLevel = AuthorizationLevel.FUNCTION,
+          authLevel = AuthorizationLevel.ANONYMOUS,
           route = "obras")
       HttpRequestMessage<Optional<String>> request,
       final ExecutionContext ctx) throws Exception {
@@ -74,7 +74,7 @@ public class ObrasFunction {
   public HttpResponseMessage obrasById(
       @HttpTrigger(name = "req",
           methods = {HttpMethod.GET, HttpMethod.PUT, HttpMethod.DELETE},
-          authLevel = AuthorizationLevel.FUNCTION,
+          authLevel = AuthorizationLevel.ANONYMOUS,
           route = "obras/{id}")
       HttpRequestMessage<Optional<String>> request,
       @BindingName("id") String idStr,
