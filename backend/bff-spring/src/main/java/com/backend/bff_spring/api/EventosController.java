@@ -14,6 +14,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/bff/eventos")
+@CrossOrigin(origins = "*")
 public class EventosController {
 
   private final WebClient eventosClient;

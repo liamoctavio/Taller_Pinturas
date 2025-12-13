@@ -14,6 +14,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/bff/obras")
+@CrossOrigin(origins = "*")
 public class ObrasController {
 
   private final WebClient obrasClient;

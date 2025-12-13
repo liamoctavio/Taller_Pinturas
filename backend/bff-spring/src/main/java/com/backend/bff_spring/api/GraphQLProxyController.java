@@ -11,6 +11,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/bff")
+@CrossOrigin(origins = "*")
 public class GraphQLProxyController {
 
   private final WebClient graphqlClient;
