@@ -44,24 +44,36 @@ public class EventosFunction {
           HttpMethod.POST }, authLevel = AuthorizationLevel.ANONYMOUS, route = "eventos") HttpRequestMessage<Optional<String>> request,
       final ExecutionContext ctx) throws Exception {
 
-    // validar token de servicio
+    ctx.getLogger().info(">>> 1. INICIANDO FUNCTION EVENTOS ROOT");
+    
     String authHeader = firstNonNullHeader(request, "Authorization", "authorization");
+    
+    if (authHeader == null) {
+        ctx.getLogger().severe(">>> 2. ALERTA ROJA: El Header Authorization es NULL. El BFF no lo envió.");
+    } else {
+        String preview = authHeader.length() > 10 ? authHeader.substring(0, 10) + "..." : authHeader;
+        ctx.getLogger().info(">>> 2. Header recibido: " + preview);
+    }
+    // -------------------------
+
     try {
       JWTClaimsSet claims = JwtAuthService.validate(authHeader);
       String subject = claims.getSubject();
       String email = claims.getStringClaim("preferred_username");
 
-      ctx.getLogger().info("Petición recibida por usuario: " + subject + " (" + email + ")");
+      ctx.getLogger().info(">>> 3. Token VALIDADO para: " + subject + " (" + email + ")");
     } catch (IllegalArgumentException iae) {
+      ctx.getLogger().severe(">>> ERROR AUTH (Argumento): " + iae.getMessage());
       return request.createResponseBuilder(HttpStatus.UNAUTHORIZED)
           .header(HttpConstants.CONTENT_TYPE, HttpConstants.APPLICATION_JSON)
           .body(HttpConstants.ERROR_MISSING_AUTH)
           .build();
     } catch (Exception e) {
-      ctx.getLogger().severe("Service token validation failed: " + e.getMessage());
+      ctx.getLogger().severe(">>> ERROR AUTH (Validación): " + e.getMessage());
+      e.printStackTrace(); 
       return request.createResponseBuilder(HttpStatus.UNAUTHORIZED)
           .header(HttpConstants.CONTENT_TYPE, HttpConstants.APPLICATION_JSON)
-          .body(HttpConstants.ERROR_INVALID_AUTH)
+          .body("{\"error\": \"Token invalido: " + e.getMessage() + "\"}")
           .build();
     }
 
