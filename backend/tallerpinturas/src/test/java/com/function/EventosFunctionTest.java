@@ -135,7 +135,7 @@ class EventosFunctionTest {
             when(ps.executeQuery()).thenReturn(rs);
             when(rs.next()).thenReturn(false);
 
-            HttpResponseMessage response = function.eventosById(request, "1", context);
+            HttpResponseMessage response = function.eventosById(request, "2", context);
 
             verify(request).createResponseBuilder(HttpStatus.NOT_FOUND);
             assertNotNull(response);
@@ -148,55 +148,85 @@ class EventosFunctionTest {
 
     @Test
     void eliminar_evento_sinAdmin_retorna403() throws Exception {
+
         when(request.getHeaders()).thenReturn(Map.of(
-                "Authorization", "Bearer token",
-                "X-User-Roles", "user"
+            "Authorization", "Bearer token"
         ));
         when(request.getHttpMethod()).thenReturn(HttpMethod.DELETE);
+        when(request.getQueryParameters()).thenReturn(
+            Map.of("id_azure", "5f784b53-452d-438f-a2b3-3772f76f23db")
+        );
 
-        try (MockedStatic<JwtAuthService> jwt = mockStatic(JwtAuthService.class)) {
+        try (
+            MockedStatic<JwtAuthService> jwt = mockStatic(JwtAuthService.class);
+            MockedStatic<Db> db = mockStatic(Db.class)
+        ) {
             jwt.when(() -> JwtAuthService.validate(anyString()))
-               .thenReturn(new JWTClaimsSet.Builder().build());
+            .thenReturn(new JWTClaimsSet.Builder().build());
 
-            HttpResponseMessage response = function.eventosById(request, "1", context);
+            Connection con = mock(Connection.class);
+            PreparedStatement ps = mock(PreparedStatement.class);
+            ResultSet rs = mock(ResultSet.class);
+
+            db.when(Db::connect).thenReturn(con);
+
+            // Admin check → NO admin
+            when(con.prepareStatement(startsWith("SELECT id_rol"))).thenReturn(ps);
+            when(ps.executeQuery()).thenReturn(rs);
+            when(rs.next()).thenReturn(false);
+
+            // Owner check → NO dueño
+            when(con.prepareStatement(startsWith("SELECT 1 FROM eventos"))).thenReturn(ps);
+            when(ps.executeQuery()).thenReturn(rs);
+            when(rs.next()).thenReturn(false);
+
+            HttpResponseMessage response = function.eventosById(request, "2", context);
 
             verify(request).createResponseBuilder(HttpStatus.FORBIDDEN);
             assertNotNull(response);
         }
     }
 
+
     @Test
     void eliminar_evento_admin_OK() throws Exception {
+
         when(request.getHeaders()).thenReturn(Map.of(
-                "Authorization", "Bearer token",
-                "X-User-Roles", "admin"
+            "Authorization", "Bearer token"
         ));
         when(request.getHttpMethod()).thenReturn(HttpMethod.DELETE);
+        when(request.getQueryParameters()).thenReturn(
+            Map.of("id_azure", "5f784b53-452d-438f-a2b3-3772f76f23db")
+        );
 
         try (
             MockedStatic<JwtAuthService> jwt = mockStatic(JwtAuthService.class);
-            MockedStatic<Db> db = mockStatic(Db.class);
-            MockedStatic<EventBusEG> eb = mockStatic(EventBusEG.class)
+            MockedStatic<Db> db = mockStatic(Db.class)
         ) {
             jwt.when(() -> JwtAuthService.validate(anyString()))
-               .thenReturn(new JWTClaimsSet.Builder().build());
+            .thenReturn(new JWTClaimsSet.Builder().build());
 
             Connection con = mock(Connection.class);
             PreparedStatement ps = mock(PreparedStatement.class);
+            ResultSet rs = mock(ResultSet.class);
 
             db.when(Db::connect).thenReturn(con);
-            when(con.prepareStatement(anyString())).thenReturn(ps);
+
+            // Admin check → SÍ admin
+            when(con.prepareStatement(startsWith("SELECT id_rol"))).thenReturn(ps);
+            when(ps.executeQuery()).thenReturn(rs);
+            when(rs.next()).thenReturn(true);
+            when(rs.getLong("id_rol")).thenReturn(1L);
+
+            // Delete
+            when(con.prepareStatement(startsWith("DELETE FROM eventos"))).thenReturn(ps);
             when(ps.executeUpdate()).thenReturn(1);
 
-            HttpResponseMessage response = function.eventosById(request, "1", context);
+            HttpResponseMessage response = function.eventosById(request, "2", context);
 
-            verify(request).createResponseBuilder(HttpStatus.NO_CONTENT);
-            eb.verify(() -> EventBusEG.publish(
-                    eq("Eventos.Evento.Eliminado"),
-                    eq("/eventos/1"),
-                    anyMap()
-            ));
+            verify(request).createResponseBuilder(HttpStatus.OK);
             assertNotNull(response);
         }
     }
+
 }
