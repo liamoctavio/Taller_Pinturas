@@ -19,7 +19,7 @@ public class EventosController {
 
   private final WebClient eventosClient;
 
-  private static final String EVENTOS_ID = "/api/eventos/{id}";
+  private static final String EVENTOS_ID = "/api/eventos/{id}"; // Definición de la constante para la URI con ID
 
   public EventosController(@Qualifier("eventosClient") WebClient eventosClient) {
     this.eventosClient = eventosClient;
@@ -66,8 +66,8 @@ public class EventosController {
   }
 
   @DeleteMapping(value = "/{id}")
-  public Mono<ResponseEntity<Void>> eliminar(@PathVariable Long id, @RequestHeader Map<String,String> headers) {
-    return eventosClient.delete().uri(EVENTOS_ID, id)
+  public Mono<ResponseEntity<Void>> eliminar(@PathVariable Long id, @RequestParam(name = "id_azure"), @RequestHeader Map<String,String> headers) {
+    return eventosClient.delete().uri(EVENTOS_ID, "?id_azure={idAzure}", id, idAzure)
         .headers(h -> HttpForwarder.copyAuthHeaders(h, headers))
         .exchangeToMono(resp -> Mono.just(ResponseEntity.status(resp.statusCode().value()).build()));
   }

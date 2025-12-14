@@ -127,7 +127,7 @@ public class EventosFunction {
       case PUT:
         return actualizar(request, id);
       case DELETE:
-        return eliminar(request, id, request);
+        return eliminar(request, id);
       default:
         return request.createResponseBuilder(HttpStatus.METHOD_NOT_ALLOWED).build();
     }
@@ -181,6 +181,12 @@ public class EventosFunction {
   private HttpResponseMessage crear(HttpRequestMessage<Optional<String>> req) throws Exception {
     Map<String, Object> in = MAPPER.readValue(req.getBody().orElse("{}"), Map.class);
 
+    // --- LOGS DE DEPURACIÓN ---
+    System.out.println(">>> DEBUG KEYS: " + in.keySet()); // ¿Llegan las llaves correctas?
+    System.out.println(">>> DEBUG FECHA: " + in.get("fechaInicio")); // ¿Llega como String "2023-..."?
+    System.out.println(">>> DEBUG TIPO: " + in.get("id_tipo_evento"));
+    // --------------------------
+
     Long idTipoEvento = extractIdTipoEventoFromMap(in);
     String idAzure = asString(in.get("id_azure"));
     Long idRol = in.get("id_rol") != null ? ((Number) in.get("id_rol")).longValue() : null;
@@ -206,7 +212,20 @@ public class EventosFunction {
         ps.setLong(1, idTipoEvento);
       else
         ps.setNull(1, Types.BIGINT);
-      ps.setString(2, idAzure);
+
+      //ps.setString(2, idAzure);
+      if (idAzure != null && !idAzure.isBlank()) {
+          try {
+              // Convertimos el String a UUID para que Postgres no reclame
+              ps.setObject(2, java.util.UUID.fromString(idAzure));
+          } catch (IllegalArgumentException e) {
+              // Si el texto no es un UUID válido, mandamos NULL para evitar error 500
+              ps.setNull(2, Types.OTHER); 
+          }
+      } else {
+          ps.setNull(2, Types.OTHER);
+      }
+
       if (idRol != null)
         ps.setLong(3, idRol);
       else
@@ -261,7 +280,16 @@ public class EventosFunction {
         ps.setLong(1, idTipoEvento);
       else
         ps.setNull(1, Types.BIGINT);
-      ps.setString(2, idAzure);
+      // ps.setString(2, idAzure);
+      if (idAzure != null && !idAzure.isBlank()) {
+          try {
+              ps.setObject(2, java.util.UUID.fromString(idAzure));
+          } catch (IllegalArgumentException e) {
+              ps.setNull(2, Types.OTHER);
+          }
+      } else {
+          ps.setNull(2, Types.OTHER);
+      }
       if (idRol != null)
         ps.setLong(3, idRol);
       else
@@ -287,31 +315,92 @@ public class EventosFunction {
       if (rows == 0)
         return req.createResponseBuilder(HttpStatus.NOT_FOUND).build();
 
-      EventBusEG.publish("Eventos.Evento.Actualizado", "/eventos/" + id, Map.of("id_eventos", id));
+      try {
+          EventBusEG.publish("Eventos.Evento.Actualizado", "/eventos/" + id, Map.of("id_eventos", id));
+      } catch (Exception e) {
+          System.out.println("⚠️ EventBus falló (ignorado): " + e.getMessage());
+      }
       return obtener(req, id);
     }
   }
 
-  private HttpResponseMessage eliminar(HttpRequestMessage<?> req, Long id, HttpRequestMessage<?> originalReq)
-      throws Exception {
-    // autorización: solo admin (según header X-User-Roles)
-    String rolesCsv = originalReq.getHeaders().getOrDefault("x-user-roles",
-        originalReq.getHeaders().get("X-User-Roles"));
-    boolean isAdmin = rolesCsv != null && Arrays.asList(rolesCsv.split(",")).contains("admin");
-    if (!isAdmin)
-      return originalReq.createResponseBuilder(HttpStatus.FORBIDDEN).body("{\"error\":\"Solo admin puede borrar\"}")
-          .build();
+  // private HttpResponseMessage eliminar(HttpRequestMessage<?> req, Long id, HttpRequestMessage<?> originalReq)
+  //     throws Exception {
+  //   // autorización: solo admin (según header X-User-Roles)
+  //   String rolesCsv = originalReq.getHeaders().getOrDefault("x-user-roles",
+  //       originalReq.getHeaders().get("X-User-Roles"));
+  //   boolean isAdmin = rolesCsv != null && Arrays.asList(rolesCsv.split(",")).contains("admin");
+  //   if (!isAdmin)
+  //     return originalReq.createResponseBuilder(HttpStatus.FORBIDDEN).body("{\"error\":\"Solo admin puede borrar\"}")
+  //         .build();
 
-    try (Connection con = Db.connect();
-        PreparedStatement ps = con.prepareStatement("DELETE FROM eventos WHERE id_eventos = ?")) {
-      ps.setLong(1, id);
-      int rows = ps.executeUpdate();
-      if (rows > 0) {
-        EventBusEG.publish("Eventos.Evento.Eliminado", "/eventos/" + id, Map.of("id_eventos", id));
-        return originalReq.createResponseBuilder(HttpStatus.NO_CONTENT).build();
-      } else {
-        return originalReq.createResponseBuilder(HttpStatus.NOT_FOUND).build();
-      }
+  //   try (Connection con = Db.connect();
+  //       PreparedStatement ps = con.prepareStatement("DELETE FROM eventos WHERE id_eventos = ?")) {
+  //     ps.setLong(1, id);
+  //     int rows = ps.executeUpdate();
+  //     if (rows > 0) {
+  //       EventBusEG.publish("Eventos.Evento.Eliminado", "/eventos/" + id, Map.of("id_eventos", id));
+  //       return originalReq.createResponseBuilder(HttpStatus.NO_CONTENT).build();
+  //     } else {
+  //       return originalReq.createResponseBuilder(HttpStatus.NOT_FOUND).build();
+  //     }
+  //   }
+  // }
+  private HttpResponseMessage eliminar(HttpRequestMessage<?> req, Long idEvento) {
+    // 1. Obtener quién quiere borrar
+    String idAzureSolicitante = req.getQueryParameters().get("id_azure");
+
+    if (idAzureSolicitante == null) {
+        return req.createResponseBuilder(HttpStatus.UNAUTHORIZED)
+                  .body("{\"error\": \"Falta id_azure\"}").build();
+    }
+
+    try (Connection con = Db.connect()) {
+        
+        boolean esAdmin = false;
+        boolean esDueño = false;
+
+        // A. VERIFICAR SI ES ADMIN
+        String sqlAdmin = "SELECT id_rol FROM usuarios WHERE id_azure = ?";
+        try (PreparedStatement ps = con.prepareStatement(sqlAdmin)) {
+            ps.setObject(1, java.util.UUID.fromString(idAzureSolicitante));
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next() && rs.getLong("id_rol") == 1) {
+                    esAdmin = true;
+                }
+            }
+        }
+
+        // B. VERIFICAR SI ES DUEÑO (Si no es admin)
+        if (!esAdmin) {
+             String sqlOwner = "SELECT 1 FROM eventos WHERE id_eventos = ? AND id_azure = ?";
+             try (PreparedStatement ps = con.prepareStatement(sqlOwner)) {
+                ps.setLong(1, idEvento);
+                ps.setObject(2, java.util.UUID.fromString(idAzureSolicitante));
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) esDueño = true;
+                }
+             }
+        }
+
+        // C. DECISIÓN FINAL
+        if (!esAdmin && !esDueño) {
+            return req.createResponseBuilder(HttpStatus.FORBIDDEN)
+                      .body("{\"error\": \"No tienes permiso para borrar este evento\"}").build();
+        }
+
+        // D. BORRAR
+        String sqlDelete = "DELETE FROM eventos WHERE id_eventos = ?";
+        try (PreparedStatement ps = con.prepareStatement(sqlDelete)) {
+            ps.setLong(1, idEvento);
+            int rows = ps.executeUpdate();
+            if (rows > 0) return req.createResponseBuilder(HttpStatus.OK).body("{\"status\": \"Eliminado\"}").build();
+            else return req.createResponseBuilder(HttpStatus.NOT_FOUND).build();
+        }
+
+    } catch (Exception e) {
+        return req.createResponseBuilder(HttpStatus.INTERNAL_SERVER_ERROR)
+                  .body("Error: " + e.getMessage()).build();
     }
   }
 
@@ -339,6 +428,7 @@ public class EventosFunction {
     e.setTipo(te);
 
     String idAzure = rs.getString("id_azure");
+    e.setId_azure(idAzure); // esto para que el BFF lo vea
     if (idAzure != null) {
       UsuarioRef u = new UsuarioRef();
       u.setId_azure(idAzure);

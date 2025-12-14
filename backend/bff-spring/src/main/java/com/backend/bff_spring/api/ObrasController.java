@@ -74,8 +74,9 @@ public class ObrasController {
 
   @DeleteMapping(value = "/{id}")
   public Mono<ResponseEntity<Void>> eliminar(@PathVariable Long id,
+                                             @RequestParam(name = "id_azure") String idAzure,
                                              @RequestHeader Map<String,String> headers) {
-    return obrasClient.delete().uri("/api/obras/{id}", id)
+    return obrasClient.delete().uri("/api/obras/{id}?id_azure={idAzure}", id, idAzure)
         .headers(h -> HttpForwarder.copyAuthHeaders(h, headers))
         .exchangeToMono(resp -> Mono.just(ResponseEntity.status(resp.statusCode().value()).build()));
   }

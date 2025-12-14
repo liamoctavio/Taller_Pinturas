@@ -108,25 +108,56 @@ public class ObrasFunction {
     switch (request.getHttpMethod()) {
       case GET:    return obtener(request, id);
       case PUT:    return actualizar(request, id, ctx);
-      case DELETE: return eliminar(request, id, request);
+      case DELETE: return eliminar(request, id);
       default:     return request.createResponseBuilder(HttpStatus.METHOD_NOT_ALLOWED).build();
     }
   }
 
   // LISTAR (sin imagen por defecto)
-  private HttpResponseMessage listar(HttpRequestMessage<?> req) throws SQLException, IOException {
-    String sql = "SELECT o.id_obra, o.id_tipo_obra, t.nombre AS tipo_nombre, o.titulo, o.descripcion " +
-                 "FROM obras o LEFT JOIN tipobra t ON o.id_tipo_obra = t.id_tipo_obra ORDER BY o.id_obra";
+  // private HttpResponseMessage listar(HttpRequestMessage<?> req) throws SQLException, IOException {
+  //   String sql = "SELECT o.id_obra, o.id_tipo_obra, t.nombre AS tipo_nombre, o.titulo, o.descripcion " +
+  //                "FROM obras o LEFT JOIN tipobra t ON o.id_tipo_obra = t.id_tipo_obra ORDER BY o.id_obra";
+  //   try (Connection con = Db.connect();
+  //        PreparedStatement ps = con.prepareStatement(sql);
+  //        ResultSet rs = ps.executeQuery()) {
+  //     List<Obra> out = new ArrayList<>();
+  //     while (rs.next()) {
+  //       out.add(map(rs, false));
+  //     }
+  //     return json(req, out, HttpStatus.OK);
+  //   }
+  // }
+
+// listar los usuarios con la nuevas tablas
+  private HttpResponseMessage listar(HttpRequestMessage<?> req) throws Exception {
+    // CAMBIO CLAVE: Hacemos JOIN para traer el id_azure del dueño
+    String sql = "SELECT o.id_obra, o.titulo, o.descripcion, o.id_tipo_obra, uo.id_azure " +
+                 "FROM obras o " +
+                 "LEFT JOIN usuarios_obras uo ON o.id_obra = uo.id_obra " +
+                 "ORDER BY o.id_obra DESC";
+
     try (Connection con = Db.connect();
          PreparedStatement ps = con.prepareStatement(sql);
          ResultSet rs = ps.executeQuery()) {
-      List<Obra> out = new ArrayList<>();
+
+      List<Map<String, Object>> out = new ArrayList<>();
       while (rs.next()) {
-        out.add(map(rs, false));
+        Map<String, Object> m = new HashMap<>();
+        m.put("id_obra", rs.getLong("id_obra"));
+        m.put("titulo", rs.getString("titulo"));
+        m.put("descripcion", rs.getString("descripcion"));
+        // ... otros campos ...
+        
+        // AHORA SÍ ENVIAMOS EL DUEÑO AL FRONTEND
+        m.put("id_azure", rs.getString("id_azure")); 
+        
+        out.add(m);
       }
       return json(req, out, HttpStatus.OK);
     }
+    // ... catch ...
   }
+
 
   // OBTENER por id (incluye imagen si se solicita con includeImage)
   private HttpResponseMessage obtener(HttpRequestMessage<?> req, long id) throws SQLException, IOException {
@@ -152,83 +183,180 @@ public class ObrasFunction {
     }
   }
 
-  // CREAR - acepta input flexible
+  // CREAR - acepta input flexible antiguo
+  // private HttpResponseMessage crear(HttpRequestMessage<Optional<String>> req, ExecutionContext ctx) {
+  //   try {
+  //     String body = req.getBody().orElse("");
+  //     if (body.isBlank()) {
+  //       return req.createResponseBuilder(HttpStatus.BAD_REQUEST)
+  //           .header("Content-Type","application/json")
+  //           .body("{\"error\":\"Body vacío\"}")
+  //           .build();
+  //     }
+
+  //     // parse raw into Map first to allow flexible input (id_tipo_obra or tipo:{id_tipo_obra})
+  //     Map<String,Object> inMap = MAPPER.readValue(body, Map.class);
+
+  //     Long idTipo = extractIdTipoFromMap(inMap);
+  //     String titulo = asString(inMap.get("titulo"));
+  //     String descripcion = asString(inMap.get("descripcion"));
+  //     String imagenBase64 = asString(inMap.get("imagenBase64"));
+  //     byte[] imageBytes = (imagenBase64 != null && !imagenBase64.isBlank()) ? Base64.getDecoder().decode(imagenBase64) : null;
+
+  //     if (titulo == null || titulo.isBlank()) {
+  //       return req.createResponseBuilder(HttpStatus.BAD_REQUEST)
+  //           .header("Content-Type","application/json")
+  //           .body("{\"error\":\"titulo es obligatorio\"}")
+  //           .build();
+  //     }
+
+  //     try (Connection con = Db.connect();
+  //          PreparedStatement ps = con.prepareStatement(
+  //              "INSERT INTO obras (id_tipo_obra, titulo, descripcion, imagen) VALUES (?,?,?,?)",
+  //              Statement.RETURN_GENERATED_KEYS)) {
+
+  //       if (idTipo != null) ps.setLong(1, idTipo); else ps.setNull(1, Types.BIGINT);
+  //       ps.setString(2, titulo);
+  //       ps.setString(3, descripcion);
+  //       if (imageBytes != null) ps.setBytes(4, imageBytes); else ps.setNull(4, Types.BINARY);
+
+  //       int rows = ps.executeUpdate();
+  //       if (rows > 0) {
+  //         try (ResultSet keys = ps.getGeneratedKeys()) {
+  //           if (keys.next()) {
+  //             long newId = keys.getLong(1);
+  //             try {
+  //               Map<String,Object> data = new HashMap<>();
+  //               data.put("id_obra", newId);
+  //               data.put("titulo", titulo);
+  //               EventBusEG.publish("Arte.Obra.Creada", "/obras/" + newId, data);
+  //             } catch (Throwable t) {
+  //               ctx.getLogger().info("EventBus publish failed (ignored): " + t.getMessage());
+  //             }
+  //             return obtener(req, newId);
+  //           }
+  //         }
+  //       }
+  //       return req.createResponseBuilder(HttpStatus.INTERNAL_SERVER_ERROR)
+  //           .header("Content-Type","application/json")
+  //           .body("{\"error\":\"Insert no afectó filas\"}")
+  //           .build();
+  //     }
+  //   } catch (com.fasterxml.jackson.databind.JsonMappingException jm) {
+  //     return req.createResponseBuilder(HttpStatus.BAD_REQUEST)
+  //         .header("Content-Type","application/json")
+  //         .body("{\"error\":\"JSON inválido\",\"detalle\":\"" +
+  //               jm.getOriginalMessage().replace("\"","'") + "\"}")
+  //         .build();
+  //   } catch (SQLException ex) {
+  //     return req.createResponseBuilder(HttpStatus.INTERNAL_SERVER_ERROR)
+  //         .header("Content-Type","application/json")
+  //         .body("{\"error\":\"DB\",\"sqlstate\":\"" + ex.getSQLState() +
+  //               "\",\"code\":" + ex.getErrorCode() +
+  //               ",\"message\":\"" + ex.getMessage().replace("\"","'") + "\"}")
+  //         .build();
+  //   } catch (Exception e) {
+  //     return req.createResponseBuilder(HttpStatus.INTERNAL_SERVER_ERROR)
+  //         .header("Content-Type","application/json")
+  //         .body("{\"error\":\"server\",\"message\":\"" + e.getMessage().replace("\"","'") + "\"}")
+  //         .build();
+  //   }
+  // }
+
   private HttpResponseMessage crear(HttpRequestMessage<Optional<String>> req, ExecutionContext ctx) {
     try {
       String body = req.getBody().orElse("");
       if (body.isBlank()) {
-        return req.createResponseBuilder(HttpStatus.BAD_REQUEST)
-            .header("Content-Type","application/json")
-            .body("{\"error\":\"Body vacío\"}")
-            .build();
+        return req.createResponseBuilder(HttpStatus.BAD_REQUEST).body("{\"error\":\"Body vacío\"}").build();
       }
 
-      // parse raw into Map first to allow flexible input (id_tipo_obra or tipo:{id_tipo_obra})
       Map<String,Object> inMap = MAPPER.readValue(body, Map.class);
+      //sapear que pasa con las fotos ----
+      System.out.println(">>> DEBUG JSON KEYS: " + inMap.keySet()); // ¿Viene 'imagenBase64'?
+      
+      Object imgRaw = inMap.get("imagenBase64");
+      if (imgRaw == null) {
+          System.out.println(">>> DEBUG IMAGEN: Es NULL. El Front no envió la llave 'imagenBase64'");
+      } else {
+          String imgStr = imgRaw.toString();
+          System.out.println(">>> DEBUG IMAGEN: Recibida. Largo: " + imgStr.length());
+          System.out.println(">>> DEBUG IMAGEN (Inicio): " + imgStr.substring(0, Math.min(50, imgStr.length())));
+          // Si ves "data:image/..." aquí, ese es el error.
+      }
+      //aaaa
 
       Long idTipo = extractIdTipoFromMap(inMap);
       String titulo = asString(inMap.get("titulo"));
       String descripcion = asString(inMap.get("descripcion"));
       String imagenBase64 = asString(inMap.get("imagenBase64"));
+      
+      // 1. CAPTURA DEL ID AZURE
+      String idAzureStr = asString(inMap.get("id_azure"));
+      
+      // --- DEBUG LOG (MIRA ESTO EN LA CONSOLA NEGRA) ---
+      System.out.println(">>> DEBUG: Intentando crear obra. Titulo: " + titulo);
+      System.out.println(">>> DEBUG: ID Azure recibido del front: " + idAzureStr);
+      // -------------------------------------------------
+
       byte[] imageBytes = (imagenBase64 != null && !imagenBase64.isBlank()) ? Base64.getDecoder().decode(imagenBase64) : null;
 
       if (titulo == null || titulo.isBlank()) {
-        return req.createResponseBuilder(HttpStatus.BAD_REQUEST)
-            .header("Content-Type","application/json")
-            .body("{\"error\":\"titulo es obligatorio\"}")
-            .build();
+        return req.createResponseBuilder(HttpStatus.BAD_REQUEST).body("{\"error\":\"titulo es obligatorio\"}").build();
       }
 
-      try (Connection con = Db.connect();
-           PreparedStatement ps = con.prepareStatement(
-               "INSERT INTO obras (id_tipo_obra, titulo, descripcion, imagen) VALUES (?,?,?,?)",
-               Statement.RETURN_GENERATED_KEYS)) {
+      try (Connection con = Db.connect()) {
+          
+        // A. INSERTAR OBRA
+        try (PreparedStatement ps = con.prepareStatement(
+                "INSERT INTO obras (id_tipo_obra, titulo, descripcion, imagen) VALUES (?,?,?,?)",
+                Statement.RETURN_GENERATED_KEYS)) {
 
-        if (idTipo != null) ps.setLong(1, idTipo); else ps.setNull(1, Types.BIGINT);
-        ps.setString(2, titulo);
-        ps.setString(3, descripcion);
-        if (imageBytes != null) ps.setBytes(4, imageBytes); else ps.setNull(4, Types.BINARY);
+            if (idTipo != null) ps.setLong(1, idTipo); else ps.setNull(1, Types.BIGINT);
+            ps.setString(2, titulo);
+            ps.setString(3, descripcion);
+            if (imageBytes != null) ps.setBytes(4, imageBytes); else ps.setNull(4, Types.BINARY);
 
-        int rows = ps.executeUpdate();
-        if (rows > 0) {
-          try (ResultSet keys = ps.getGeneratedKeys()) {
-            if (keys.next()) {
-              long newId = keys.getLong(1);
-              try {
-                Map<String,Object> data = new HashMap<>();
-                data.put("id_obra", newId);
-                data.put("titulo", titulo);
-                EventBusEG.publish("Arte.Obra.Creada", "/obras/" + newId, data);
-              } catch (Throwable t) {
-                ctx.getLogger().info("EventBus publish failed (ignored): " + t.getMessage());
+            int rows = ps.executeUpdate();
+            
+            if (rows > 0) {
+              try (ResultSet keys = ps.getGeneratedKeys()) {
+                if (keys.next()) {
+                  long newId = keys.getLong(1); 
+                  System.out.println(">>> DEBUG: Obra creada con ID: " + newId);
+
+                  // =================================================================================
+                  // B. INSERTAR VÍNCULO (CORREGIDO)
+                  // =================================================================================
+                  if (idAzureStr != null && !idAzureStr.isBlank()) {
+                      // EL ERROR ESTABA AQUI: Quitamos 'es_principal' y el 'false'
+                      String sqlVinculo = "INSERT INTO usuarios_obras (id_azure, id_obra) VALUES (?, ?)";
+                      
+                      try (PreparedStatement psLink = con.prepareStatement(sqlVinculo)) {
+                          psLink.setObject(1, java.util.UUID.fromString(idAzureStr));
+                          psLink.setLong(2, newId);
+                          psLink.executeUpdate();
+                          System.out.println(">>> DEBUG: Vínculo creado exitosamente.");
+                          
+                      } catch (Exception e) {
+                          // AHORA IMPRIMIMOS EL ERROR REAL
+                          System.err.println(">>> ERROR CRÍTICO AL VINCULAR: " + e.getMessage());
+                          e.printStackTrace();
+                      }
+                  } else {
+                      System.out.println(">>> DEBUG: No se vinculó porque id_azure es NULL o vacío.");
+                  }
+                  // =================================================================================
+
+                  return obtener(req, newId);
+                }
               }
-              return obtener(req, newId);
             }
-          }
+            return req.createResponseBuilder(HttpStatus.INTERNAL_SERVER_ERROR).body("{\"error\":\"No se generó ID\"}").build();
         }
-        return req.createResponseBuilder(HttpStatus.INTERNAL_SERVER_ERROR)
-            .header("Content-Type","application/json")
-            .body("{\"error\":\"Insert no afectó filas\"}")
-            .build();
       }
-    } catch (com.fasterxml.jackson.databind.JsonMappingException jm) {
-      return req.createResponseBuilder(HttpStatus.BAD_REQUEST)
-          .header("Content-Type","application/json")
-          .body("{\"error\":\"JSON inválido\",\"detalle\":\"" +
-                jm.getOriginalMessage().replace("\"","'") + "\"}")
-          .build();
-    } catch (SQLException ex) {
-      return req.createResponseBuilder(HttpStatus.INTERNAL_SERVER_ERROR)
-          .header("Content-Type","application/json")
-          .body("{\"error\":\"DB\",\"sqlstate\":\"" + ex.getSQLState() +
-                "\",\"code\":" + ex.getErrorCode() +
-                ",\"message\":\"" + ex.getMessage().replace("\"","'") + "\"}")
-          .build();
     } catch (Exception e) {
-      return req.createResponseBuilder(HttpStatus.INTERNAL_SERVER_ERROR)
-          .header("Content-Type","application/json")
-          .body("{\"error\":\"server\",\"message\":\"" + e.getMessage().replace("\"","'") + "\"}")
-          .build();
+      e.printStackTrace(); // Ver error en consola
+      return req.createResponseBuilder(HttpStatus.INTERNAL_SERVER_ERROR).body("{\"error\":\"" + e.getMessage() + "\"}").build();
     }
   }
 
@@ -270,23 +398,149 @@ public class ObrasFunction {
     }
   }
 
-  // ELIMINAR
-  private HttpResponseMessage eliminar(HttpRequestMessage<?> req, long id, HttpRequestMessage<?> originalReq) throws SQLException {
-    // autorización: solo admin (según header X-User-Roles)
-    String rolesCsv = originalReq.getHeaders().getOrDefault("x-user-roles", originalReq.getHeaders().get("X-User-Roles"));
-    boolean isAdmin = rolesCsv != null && Arrays.asList(rolesCsv.split(",")).contains("admin");
-    if (!isAdmin) return originalReq.createResponseBuilder(HttpStatus.FORBIDDEN).body("{\"error\":\"Solo admin puede borrar\"}").build();
+//ELImina pero el admin no puede
+  // private HttpResponseMessage eliminar(HttpRequestMessage<?> req, Long idObra) throws Exception {
+    
+  //   // 1. Obtener quién quiere borrar (desde el Query Param que enviamos en Angular)
+  //   String idAzureSolicitante = req.getQueryParameters().get("id_azure");
+    
+  //   // 2. Obtener Roles (para saber si es Admin) - Esto viene en los Headers usualmente
+  //   // Si no usas headers de roles, asumiremos que validamos por base de datos abajo.
+  //   String rolesHeader = req.getHeaders().getOrDefault("x-user-roles", "");
+  //   boolean esAdmin = rolesHeader.contains("admin"); // O lógica similar si tienes roles implementados
 
-    try (Connection con = Db.connect();
-         PreparedStatement ps = con.prepareStatement("DELETE FROM obras WHERE id_obra = ?")) {
-      ps.setLong(1, id);
-      int rows = ps.executeUpdate();
-      if (rows > 0) {
-        EventBusEG.publish("Arte.Obra.Eliminada", "/obras/" + id, Map.of("id_obra", id));
-        return originalReq.createResponseBuilder(HttpStatus.NO_CONTENT).build();
-      } else {
-        return originalReq.createResponseBuilder(HttpStatus.NOT_FOUND).build();
-      }
+  //   if (idAzureSolicitante == null) {
+  //       return req.createResponseBuilder(HttpStatus.UNAUTHORIZED)
+  //           .body("{\"error\": \"Falta id_azure en la petición\"}").build();
+  //   }
+
+  //   try (Connection con = Db.connect()) {
+        
+  //       // PASO A: Verificar si tiene permiso
+  //       // El permiso se concede si:
+  //       // 1. Es Admin (lo verificamos por rol o consulta)
+  //       // 2. O SI EXISTE un vínculo en usuarios_obras entre este usuario y esta obra
+        
+  //       boolean esDueño = false;
+        
+  //       // Verificamos en la tabla de unión si este usuario es dueño de esta obra
+  //       String sqlCheck = "SELECT 1 FROM usuarios_obras WHERE id_obra = ? AND id_azure = ?";
+  //       try (PreparedStatement psCheck = con.prepareStatement(sqlCheck)) {
+  //           psCheck.setLong(1, idObra);
+  //           psCheck.setObject(2, java.util.UUID.fromString(idAzureSolicitante));
+  //           try (ResultSet rs = psCheck.executeQuery()) {
+  //               if (rs.next()) {
+  //                   esDueño = true;
+  //               }
+  //           }
+  //       }
+
+  //       // Si NO es dueño y NO es admin, rechazamos
+  //       // (Si aún no tienes roles configurados en headers, confía solo en esDueño por ahora)
+  //       if (!esDueño && !esAdmin) {
+  //            return req.createResponseBuilder(HttpStatus.FORBIDDEN)
+  //               .body("{\"error\": \"No tienes permiso para borrar esta obra (no es tuya)\"}")
+  //               .build();
+  //       }
+
+  //       // PASO B: Proceder a borrar
+  //       // Como tienes ON DELETE CASCADE en tu SQL, al borrar la obra se borra el vínculo solo.
+  //       String sqlDelete = "DELETE FROM obras WHERE id_obra = ?";
+  //       try (PreparedStatement ps = con.prepareStatement(sqlDelete)) {
+  //           ps.setLong(1, idObra);
+  //           int rows = ps.executeUpdate();
+            
+  //           if (rows > 0) {
+  //               return req.createResponseBuilder(HttpStatus.OK)
+  //                   .body("{\"status\": \"Eliminado\"}").build();
+  //           } else {
+  //               return req.createResponseBuilder(HttpStatus.NOT_FOUND)
+  //                   .body("{\"error\": \"Obra no encontrada\"}").build();
+  //           }
+  //       }
+  //   } catch (Exception e) {
+  //       return req.createResponseBuilder(HttpStatus.INTERNAL_SERVER_ERROR)
+  //           .body("{\"error\": \"" + e.getMessage() + "\"}").build();
+  //   }
+  // }
+
+//eliminar con verificacion de admin y dueño
+  private HttpResponseMessage eliminar(HttpRequestMessage<?> req, Long idObra) throws Exception {
+    
+    // 1. Obtener quién quiere borrar
+    String idAzureSolicitante = req.getQueryParameters().get("id_azure");
+
+    if (idAzureSolicitante == null) {
+        return req.createResponseBuilder(HttpStatus.UNAUTHORIZED)
+            .body("{\"error\": \"Falta id_azure en la petición\"}").build();
+    }
+
+    try (Connection con = Db.connect()) {
+        
+        // =====================================================================
+        // PASO 1: VERIFICAR SI ES ADMIN (CONSULTANDO LA BD)
+        // =====================================================================
+        boolean esAdmin = false;
+        
+        // Asumiendo que tienes tabla 'usuarios' con columna 'id_rol' y 'id_azure'
+        String sqlAdmin = "SELECT id_rol FROM usuarios WHERE id_azure = ?";
+        try (PreparedStatement psAdmin = con.prepareStatement(sqlAdmin)) {
+            psAdmin.setObject(1, java.util.UUID.fromString(idAzureSolicitante));
+            try (ResultSet rsAdmin = psAdmin.executeQuery()) {
+                if (rsAdmin.next()) {
+                    long rol = rsAdmin.getLong("id_rol");
+                    if (rol == 1) { // 1 = ADMIN (Ajusta esto según tu lógica)
+                        esAdmin = true;
+                        System.out.println(">>> DEBUG: Usuario es ADMIN, permiso concedido.");
+                    }
+                }
+            }
+        }
+
+        // =====================================================================
+        // PASO 2: SI NO ES ADMIN, VERIFICAR SI ES DUEÑO
+        // =====================================================================
+        boolean esDueño = false;
+        if (!esAdmin) { // Solo gastamos recursos buscando si no es admin ya
+            String sqlCheck = "SELECT 1 FROM usuarios_obras WHERE id_obra = ? AND id_azure = ?";
+            try (PreparedStatement psCheck = con.prepareStatement(sqlCheck)) {
+                psCheck.setLong(1, idObra);
+                psCheck.setObject(2, java.util.UUID.fromString(idAzureSolicitante));
+                try (ResultSet rs = psCheck.executeQuery()) {
+                    if (rs.next()) {
+                        esDueño = true;
+                    }
+                }
+            }
+        }
+
+        // =====================================================================
+        // PASO 3: DECISIÓN FINAL
+        // =====================================================================
+        if (!esDueño && !esAdmin) {
+             return req.createResponseBuilder(HttpStatus.FORBIDDEN)
+                .body("{\"error\": \"No tienes permiso. No eres el dueño ni Admin.\"}")
+                .build();
+        }
+
+        // PASO 4: BORRAR
+        String sqlDelete = "DELETE FROM obras WHERE id_obra = ?";
+        try (PreparedStatement ps = con.prepareStatement(sqlDelete)) {
+            ps.setLong(1, idObra);
+            int rows = ps.executeUpdate();
+            
+            if (rows > 0) {
+                return req.createResponseBuilder(HttpStatus.OK)
+                    .body("{\"status\": \"Eliminado\"}").build();
+            } else {
+                return req.createResponseBuilder(HttpStatus.NOT_FOUND)
+                    .body("{\"error\": \"Obra no encontrada\"}").build();
+            }
+        }
+    } catch (Exception e) {
+        e.printStackTrace();
+        return req.createResponseBuilder(HttpStatus.INTERNAL_SERVER_ERROR)
+            .body("{\"error\": \"" + e.getMessage() + "\"}").build();
     }
   }
 

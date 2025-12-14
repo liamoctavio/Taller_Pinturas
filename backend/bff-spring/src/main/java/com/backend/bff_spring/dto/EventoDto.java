@@ -5,15 +5,21 @@ import java.time.OffsetDateTime;
 import java.util.UUID;
 
 public class EventoDto {
+    @JsonProperty("id_evento")
     private Long idEvento;
+    @JsonProperty("id_tipo_evento")
     private Long idTipoEvento;
+    @JsonProperty("id_azure")
     private UUID idAzure;
+    @JsonProperty("id_rol")
     private Long idRol;
     
     private String titulo;
     private String descripcion;
-    private OffsetDateTime fechaInicio;
-    private OffsetDateTime fechaTermino;
+    @JsonProperty("fechaInicio")
+    private String fechaInicio; 
+    @JsonProperty("fechaTermino")
+    private String fechaTermino;
     private BigDecimal precio;
     private String direccion;
     
@@ -53,17 +59,17 @@ public class EventoDto {
     public void setDescripcion(String descripcion) {
         this.descripcion = descripcion;
     }
-    public OffsetDateTime getFechaInicio() {
-        return fechaInicio;
+    public String getFechaInicio() { 
+        return fechaInicio; 
     }
-    public void setFechaInicio(OffsetDateTime fechaInicio) {
-        this.fechaInicio = fechaInicio;
+    public void setFechaInicio(String fechaInicio) { 
+        this.fechaInicio = fechaInicio; 
     }
-    public OffsetDateTime getFechaTermino() {
-        return fechaTermino;
+    public String getFechaTermino() { 
+        return fechaTermino; 
     }
-    public void setFechaTermino(OffsetDateTime fechaTermino) {
-        this.fechaTermino = fechaTermino;
+    public void setFechaTermino(String fechaTermino) { 
+        this.fechaTermino = fechaTermino; 
     }
     public BigDecimal getPrecio() {
         return precio;
