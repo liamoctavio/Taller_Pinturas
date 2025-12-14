@@ -13,8 +13,12 @@ public class Evento {
   private String fechaTermino;
   private BigDecimal precio;
   private String direccion;
+  private String id_azure;
 
   public Evento() {}
+
+  public String getId_azure() { return id_azure;}
+  public void setId_azure(String id_azure) { this.id_azure = id_azure; }
 
   public Long getId_eventos() { return id_eventos; }
   public void setId_eventos(Long id_eventos) { this.id_eventos = id_eventos; }
