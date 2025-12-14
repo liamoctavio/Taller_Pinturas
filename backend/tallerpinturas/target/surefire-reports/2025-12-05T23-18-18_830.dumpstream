@@ -1,0 +1,5 @@
+# Created at 2025-12-05T23:18:19.034
+Boot Manifest-JAR contains absolute paths in classpath 'D:\DISCO_E\Duoc\IEDF\Bimestre_7\Proyecto\Taller_Pinturas\backend\tallerpinturas\target\test-classes'
+Hint: <argLine>-Djdk.net.URLClassPath.disableClassPathURLCheck=true</argLine>
+'other' has different root
+

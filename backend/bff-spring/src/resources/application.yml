@@ -1,0 +1,11 @@
+server:
+  port: 8080
+# TODO: crear las funciones en azure y asignar las variables
+functions:
+  eventosBaseUrl: ${FN_EVENTOS_BASEURL:https://tallerpinturas.azurewebsites.net/api/eventos}
+  obrasBaseUrl: ${FN_OBRAS_BASEURL:https://tallerpinturas.azurewebsites.net/api/obras}
+  usuariosBaseUrl: ${FN_USUARIOS_BASEURL:https://tallerpinturas.azurewebsites.net/api/usuarios}
+  graphqlBaseUrl: ${FN_GRAPHQL_BASEURL:https://tallerpinturas.azurewebsites.net/api/graphql}
+service:
+  auth:
+    token: ${SERVICE_AUTH_TOKEN:} 

@@ -1,0 +1,16 @@
+{
+  "scriptFile" : "../tallerpinturas-1.0-SNAPSHOT.jar",
+  "entryPoint" : "com.function.EventosFunction.eventosRoot",
+  "bindings" : [ {
+    "type" : "httpTrigger",
+    "direction" : "in",
+    "name" : "req",
+    "route" : "eventos",
+    "methods" : [ "GET", "POST" ],
+    "authLevel" : "FUNCTION"
+  }, {
+    "type" : "http",
+    "direction" : "out",
+    "name" : "$return"
+  } ]
+}

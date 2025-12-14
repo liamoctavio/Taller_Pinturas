@@ -1,0 +1,16 @@
+{
+  "scriptFile" : "../tallerpinturas-1.0-SNAPSHOT.jar",
+  "entryPoint" : "com.function.FunctionGraphQL.run",
+  "bindings" : [ {
+    "type" : "httpTrigger",
+    "direction" : "in",
+    "name" : "req",
+    "route" : "graphql",
+    "methods" : [ "POST" ],
+    "authLevel" : "FUNCTION"
+  }, {
+    "type" : "http",
+    "direction" : "out",
+    "name" : "$return"
+  } ]
+}

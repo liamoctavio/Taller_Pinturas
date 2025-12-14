@@ -1,0 +1,9 @@
+{
+  "scriptFile" : "../fn-consumidora-1.0-SNAPSHOT.jar",
+  "entryPoint" : "com.function.OnTallerPinturasEventFunction.run",
+  "bindings" : [ {
+    "type" : "eventGridTrigger",
+    "direction" : "in",
+    "name" : "eventGridEvent"
+  } ]
+}

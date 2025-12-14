@@ -1,0 +1,21 @@
+<app-navbar></app-navbar>
+
+<router-outlet></router-outlet>
+
+<div style="padding: 20px;">
+  <h1>Lista de Usuarios (Desde AWS)</h1>
+
+  <ul>
+    @for (usuario of listaUsuarios; track usuario.id_azure) {
+      <li>
+        <strong>{{ usuario.nombre_completo }}</strong> ({{ usuario.username }}) - Rol: {{ usuario.rol.nombre_rol }}
+      </li>
+    } @empty {
+      <li>Cargando datos o lista vacía...</li>
+    }
+  </ul>
+
+  <hr>
+  <h3>Debug (JSON crudo):</h3>
+  <pre>{{ listaUsuarios | json }}</pre>
+</div>

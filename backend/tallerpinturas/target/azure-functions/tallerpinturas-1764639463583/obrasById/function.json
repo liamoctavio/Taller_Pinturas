@@ -1,0 +1,16 @@
+{
+  "scriptFile" : "../tallerpinturas-1.0-SNAPSHOT.jar",
+  "entryPoint" : "com.function.ObrasFunction.obrasById",
+  "bindings" : [ {
+    "type" : "httpTrigger",
+    "direction" : "in",
+    "name" : "req",
+    "route" : "obras/{id}",
+    "methods" : [ "GET", "PUT", "DELETE" ],
+    "authLevel" : "FUNCTION"
+  }, {
+    "type" : "http",
+    "direction" : "out",
+    "name" : "$return"
+  } ]
+}
