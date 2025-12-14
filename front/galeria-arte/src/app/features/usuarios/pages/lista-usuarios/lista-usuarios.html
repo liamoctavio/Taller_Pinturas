@@ -1,0 +1,172 @@
+<!-- <div class="container mt-5">
+  
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h2 class="fw-bold text-primary">Gestión de Usuarios</h2>
+      <p class="text-muted">Administra los roles y accesos del sistema</p>
+    </div>
+    <div class="badge bg-light text-dark p-2 border">
+      Total: {{ usuarios.length }} usuarios
+    </div>
+  </div>
+
+  <div *ngIf="cargando" class="text-center py-5">
+    <div class="spinner-border text-primary" role="status">
+      <span class="visually-hidden">Cargando...</span>
+    </div>
+    <p class="mt-2 text-muted">Cargando directorio...</p>
+  </div>
+
+  <div *ngIf="!cargando" class="card shadow-sm border-0">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="bg-light">
+          <tr>
+            <th class="ps-4">Usuario</th>
+            <th>Rol</th>
+            <th>ID Azure (Sistema)</th>
+            <th class="text-end pe-4">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let u of usuarios">
+            
+            <td class="ps-4">
+              <div class="d-flex align-items-center">
+                <div class="rounded-circle bg-primary text-white d-flex justify-content-center align-items-center me-3" 
+                     style="width: 40px; height: 40px; font-weight: bold;">
+                  {{ u.nombre_completo ? u.nombre_completo.charAt(0).toUpperCase() : 'U' }}
+                </div>
+                <div>
+                  <div class="fw-bold">{{ u.nombre_completo || 'Sin Nombre' }}</div>
+                  <div class="small text-muted">{{ u.username }}</div>
+                </div>
+              </div>
+            </td>
+
+            <td>
+              <span class="badge rounded-pill" [ngClass]="getBadgeClass(u.rol)">
+                {{ u.rol?.nombre_rol || 'Sin Rol' }}
+              </span>
+            </td>
+
+            <td>
+              <code class="text-muted small">{{ u.id_azure }}</code>
+            </td>
+
+            <td class="text-end pe-4">
+              <button class="btn btn-sm btn-outline-secondary" title="Ver detalles">
+                <i class="bi bi-three-dots-vertical"></i>
+              </button>
+            </td>
+
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div *ngIf="!cargando && usuarios.length === 0" class="alert alert-warning mt-3">
+    No se encontraron usuarios en la base de datos.
+  </div>
+
+</div> -->
+
+<div class="container mt-5">
+  
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3">
+    <div>
+      <h2 class="fw-bold text-dark mb-1">Gestión de Usuarios</h2>
+      <p class="text-muted mb-0">Administra los roles y accesos del sistema</p>
+    </div>
+    <div class="d-flex align-items-center bg-white px-3 py-2 rounded-pill shadow-sm border">
+      <span class="badge bg-primary bg-opacity-10 text-primary rounded-circle p-1 me-2">
+        <i class="bi bi-people-fill"></i>
+      </span>
+      <span class="fw-medium text-secondary small">Total: <strong class="text-dark">{{ usuarios.length }}</strong> usuarios</span>
+    </div>
+  </div>
+
+  <div *ngIf="cargando" class="card border-0 shadow-sm py-5 text-center bg-light bg-opacity-50">
+    <div class="py-4">
+      <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;">
+        <span class="visually-hidden">Cargando...</span>
+      </div>
+      <p class="text-muted fw-medium animate-pulse">Sincronizando directorio...</p>
+    </div>
+  </div>
+
+  <div *ngIf="!cargando && usuarios.length > 0" class="card shadow-lg border-0 rounded-4 overflow-hidden">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="bg-light">
+          <tr>
+            <th class="ps-4 py-3 text-uppercase text-secondary small fw-bold" style="font-size: 0.75rem; letter-spacing: 0.5px;">Usuario</th>
+            <th class="py-3 text-uppercase text-secondary small fw-bold" style="font-size: 0.75rem; letter-spacing: 0.5px;">Rol Asignado</th>
+            <th class="py-3 text-uppercase text-secondary small fw-bold" style="font-size: 0.75rem; letter-spacing: 0.5px;">ID Azure</th>
+            <th class="pe-4 py-3 text-end text-uppercase text-secondary small fw-bold" style="font-size: 0.75rem; letter-spacing: 0.5px;">Acciones</th>
+          </tr>
+        </thead>
+        <tbody class="border-top-0">
+          <tr *ngFor="let u of usuarios" class="position-relative">
+            
+            <td class="ps-4 py-3">
+              <div class="d-flex align-items-center">
+                <div class="rounded-circle bg-primary bg-opacity-10 text-primary d-flex justify-content-center align-items-center me-3 flex-shrink-0" 
+                     style="width: 45px; height: 45px; font-weight: 600; font-size: 1.1rem;">
+                  {{ u.nombre_completo ? u.nombre_completo.charAt(0).toUpperCase() : 'U' }}
+                </div>
+                <div>
+                  <div class="fw-bold text-dark mb-0">{{ u.nombre_completo || 'Sin Nombre' }}</div>
+                  <div class="small text-muted">{{ u.username }}</div>
+                </div>
+              </div>
+            </td>
+
+            <td class="py-3">
+              <span class="badge rounded-pill px-3 py-2 fw-normal" 
+                    [ngClass]="getBadgeClass(u.rol)"
+                    style="font-size: 0.8rem;">
+                {{ u.rol?.nombre_rol || 'Sin Rol' }}
+              </span>
+            </td>
+
+            <td class="py-3">
+              <div class="d-flex align-items-center text-muted">
+                <i class="bi bi-shield-lock me-2 small"></i>
+                <code class="text-secondary bg-light px-2 py-1 rounded border small">{{ u.id_azure }}</code>
+              </div>
+            </td>
+
+            <td class="text-end pe-4 py-3">
+              <button class="btn btn-light btn-sm text-secondary border-0 rounded-circle hover-shadow" 
+                      title="Opciones"
+                      style="width: 32px; height: 32px;">
+                <i class="bi bi-three-dots-vertical"></i>
+              </button>
+            </td>
+
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    
+    <div class="card-footer bg-white border-top-0 py-3 text-end">
+      <small class="text-muted fst-italic me-3">Mostrando {{ usuarios.length }} registros</small>
+    </div>
+  </div>
+
+  <div *ngIf="!cargando && usuarios.length === 0" class="text-center py-5">
+    <div class="mb-3">
+      <div class="bg-light rounded-circle d-inline-flex justify-content-center align-items-center" style="width: 80px; height: 80px;">
+        <i class="bi bi-people text-secondary" style="font-size: 2rem;"></i>
+      </div>
+    </div>
+    <h5 class="fw-bold text-dark">No hay usuarios registrados</h5>
+    <p class="text-muted mb-4">Parece que la base de datos está vacía por el momento.</p>
+    <button class="btn btn-outline-primary btn-sm rounded-pill px-4">
+      <i class="bi bi-arrow-clockwise me-1"></i> Recargar
+    </button>
+  </div>
+
+</div>

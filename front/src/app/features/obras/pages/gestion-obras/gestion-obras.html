@@ -1,0 +1,71 @@
+<!-- <div class="container mt-5">
+  <div class="card shadow-sm">
+    <div class="card-header bg-primary text-white">
+      <h3 class="mb-0">Subir Nueva Obra</h3>
+    </div>
+    
+    <div class="card-body">
+      <form [formGroup]="formulario" (ngSubmit)="guardarObra()">
+        
+        <div class="mb-3">
+          <label class="form-label">Título de la Obra</label>
+          <input type="text" class="form-control" formControlName="titulo" placeholder="Ej: Atardecer en la playa">
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">Descripción</label>
+          <textarea class="form-control" formControlName="descripcion" rows="3" placeholder="Detalles técnicos, inspiración..."></textarea>
+        </div>
+
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Precio (CLP)</label>
+            <input type="number" class="form-control" formControlName="precio">
+          </div>
+          
+          <div class="col-md-6 mb-3">
+            <label class="form-label">URL de la Imagen</label>
+            <input type="text" class="form-control" formControlName="imagenUrl" placeholder="https://...">
+            <div class="form-text">Pega una URL de imagen para probar (ej: https://picsum.photos/400/300)</div>
+          </div>
+        </div>
+
+        <div class="d-flex justify-content-end gap-2 mt-4">
+          <button type="button" (click)="cancelar()" class="btn btn-secondary">Cancelar</button>
+          <button type="submit" class="btn btn-success" [disabled]="formulario.invalid">
+            <i class="bi bi-save"></i> Publicar Obra
+          </button>
+        </div>
+
+      </form>
+    </div>
+  </div>
+</div> -->
+<div class="container-obra">
+  <h2>🎨 Subir Nueva Obra</h2>
+  
+  <div class="form-group">
+    <label>Título de la obra:</label>
+    <input type="text" [(ngModel)]="nuevaObra.titulo" class="input-field" placeholder="Ej: Atardecer en el puerto">
+  </div>
+
+  <div class="form-group">
+    <label>Descripción:</label>
+    <textarea [(ngModel)]="nuevaObra.descripcion" class="input-field" rows="3"></textarea>
+  </div>
+
+  <div class="form-group">
+    <label>Imagen:</label>
+    <input type="file" (change)="onFileSelected($event)" accept="image/*">
+  </div>
+
+  <div *ngIf="previewUrl" class="preview-box">
+    <img [src]="previewUrl" alt="Vista previa">
+  </div>
+
+  <p *ngIf="mensajeError" style="color: red;">{{ mensajeError }}</p>
+
+  <button (click)="guardar()" [disabled]="loading" class="btn-subir">
+    {{ loading ? 'Subiendo...' : 'Publicar Obra' }}
+  </button>
+</div>

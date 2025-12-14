@@ -1,0 +1,31 @@
+/* Animación de entrada suave */
+.animate-up {
+  animation: slideUp 0.4s ease-out forwards;
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Estilo para los inputs bg-light al hacer focus */
+.form-control.bg-light:focus, 
+.form-select.bg-light:focus {
+  background-color: #fff !important;
+  box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.15); /* Sombra azul muy suave */
+  border: 1px solid #dee2e6 !important;
+}
+
+/* Ajustes de iconos */
+.input-group-text {
+  color: #adb5bd;
+}
+
+/* Botón Hover */
+.btn-dark {
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.btn-dark:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(0,0,0,0.15) !important;
+}

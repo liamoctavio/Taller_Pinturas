@@ -1,0 +1,24 @@
+// Hacemos que la imagen siempre tenga la misma altura y recorte lo que sobre
+.card-img-top {
+  height: 200px;
+  object-fit: cover; // Esto evita que la imagen se deforme
+  transition: transform 0.3s ease;
+}
+
+// Efecto hover: al pasar el mouse, la tarjeta se levanta un poco
+.obra-card {
+  transition: transform 0.2s, box-shadow 0.2s;
+  cursor: pointer;
+
+  &:hover {
+    transform: translateY(-5px); // Sube 5 pixeles
+    box-shadow: 0 10px 20px rgba(0,0,0,0.15) !important; // Sombra más fuerte
+    
+    .card-img-top {
+      transform: scale(1.05); // Zoom suave a la imagen
+    }
+  }
+  
+  // Ocultamos el desborde para el zoom de la imagen
+  overflow: hidden; 
+}
