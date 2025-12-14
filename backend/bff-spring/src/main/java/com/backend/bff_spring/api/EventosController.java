@@ -66,8 +66,9 @@ public class EventosController {
   }
 
   @DeleteMapping(value = "/{id}")
-  public Mono<ResponseEntity<Void>> eliminar(@PathVariable Long id, @RequestHeader Map<String,String> headers) {
-    return eventosClient.delete().uri(EVENTOS_ID, id)
+  public Mono<ResponseEntity<Void>> eliminar(@PathVariable Long id, @RequestParam(name = "id_azure") String idAzure, @RequestHeader Map<String,String> headers) {   
+    return eventosClient.delete()
+        .uri(EVENTOS_ID + "?id_azure={idAzure}", id, idAzure)
         .headers(h -> HttpForwarder.copyAuthHeaders(h, headers))
         .exchangeToMono(resp -> Mono.just(ResponseEntity.status(resp.statusCode().value()).build()));
   }
