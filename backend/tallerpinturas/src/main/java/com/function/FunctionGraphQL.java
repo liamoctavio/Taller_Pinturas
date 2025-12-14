@@ -21,17 +21,17 @@ import java.util.*;
  * GraphQL function that delegates to Obras, Eventos and Usuarios APIs via HTTP.
  * Environment variables required:
  *   API_TALLER_PINTURAS     e.g. https://<app>.azurewebsites.net
- *   API_TALLER_PINTURAS
- *   API_TALLER_PINTURAS
  *   SERVICE_AUTH_TOKEN (bearer token for service-to-service auth OR "key:<function-key>")
  *
  */
 public class FunctionGraphQL {
 
   private static final ObjectMapper MAPPER = new ObjectMapper();
-  private static final HttpClient HTTP = HttpClient.newBuilder()
-      .connectTimeout(Duration.ofSeconds(10))
-      .build();
+  static HttpClient httpClient = HttpClient.newHttpClient(); // visible para test
+
+  static void setHttpClient(HttpClient client) {
+    httpClient = client;
+  }
 
   private static final GraphQL graphQL;
 
@@ -50,15 +50,19 @@ public class FunctionGraphQL {
       return "";
     };
 
-    final String API_TALLER_PINTURAS = resolveBase.apply("API_TALLER_PINTURAS");
+   String base = System.getProperty(
+        "API_TALLER_PINTURAS",
+        System.getenv("API_TALLER_PINTURAS")
+    );
 
-    if (API_TALLER_PINTURAS.isBlank() || API_TALLER_PINTURAS.isBlank() || API_TALLER_PINTURAS.isBlank()) {
-      throw new IllegalStateException("Falta configuración de API_*_BASE. Define API_TALLER_PINTURAS");
+    if (base == null || base.isBlank()) {
+        throw new IllegalStateException(
+            "Falta configuración de API_TALLER_PINTURAS"
+        );
     }
-
-    final String URL_OBRAS = joinUrl(API_TALLER_PINTURAS, "/api/obras");
-    final String URL_EVENTOS = joinUrl(API_TALLER_PINTURAS, "/api/eventos");
-    final String URL_USUARIOS = joinUrl(API_TALLER_PINTURAS, "/api/usuarios");
+    final String URL_OBRAS = joinUrl(base, "/api/obras");
+    final String URL_EVENTOS = joinUrl(base, "/api/eventos");
+    final String URL_USUARIOS = joinUrl(base, "/api/usuarios");
 
     // --- DataFetchers ---
 
@@ -265,7 +269,7 @@ public class FunctionGraphQL {
   }
 
   private static <T> T getJson(String url, String serviceToken, TypeReference<T> type) throws Exception {
-    HttpResponse<String> resp = HTTP.send(getBuilder(url, serviceToken).build(), HttpResponse.BodyHandlers.ofString());
+    HttpResponse<String> resp = httpClient.send(getBuilder(url, serviceToken).build(), HttpResponse.BodyHandlers.ofString());
     if (resp.statusCode() / 100 == 2) {
       String body = resp.body();
       if (body == null || body.isBlank()) {
@@ -279,7 +283,7 @@ public class FunctionGraphQL {
 
   private static <T> T postJson(String url, String serviceToken, Object body, TypeReference<T> type) throws Exception {
     String json = (body instanceof String) ? (String) body : MAPPER.writeValueAsString(body);
-    HttpResponse<String> resp = HTTP.send(postBuilder(url, serviceToken, json).build(), HttpResponse.BodyHandlers.ofString());
+    HttpResponse<String> resp = httpClient.send(postBuilder(url, serviceToken, json).build(), HttpResponse.BodyHandlers.ofString());
     if (resp.statusCode() / 100 == 2 || resp.statusCode() == 201) {
       String b = resp.body();
       if (b == null || b.isBlank()) return null;
