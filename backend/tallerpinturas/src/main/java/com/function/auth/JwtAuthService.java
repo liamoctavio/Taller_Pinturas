@@ -21,48 +21,51 @@ import java.net.http.HttpResponse;
 import java.text.ParseException;
 import java.time.Duration;
 import java.util.Date;
-import java.util.List;
 
 public final class JwtAuthService {
 
-  private static final String JWKS_URL = System.getenv("AZURE_AD_B2C_JWKS_URL");
-  private static final String ISSUER = System.getenv("AZURE_AD_B2C_ISSUER");
-  
-  private static final String API_AUDIENCE = System.getenv("API_APP_ID_URI");
-  private static final DefaultJWTProcessor<SecurityContext> JWT_PROC;
+  private static volatile DefaultJWTProcessor<SecurityContext> JWT_PROC;
 
-  static {
-    if (JWKS_URL == null || ISSUER == null || API_AUDIENCE == null) {
-      System.err.println("ERROR: Faltan variables de entorno.");
-      System.err.println("Requerido: AZURE_AD_B2C_JWKS_URL, AZURE_AD_B2C_ISSUER, API_APP_ID_URI");
-      throw new IllegalStateException("Faltan variables de entorno para JWT");
+  private JwtAuthService() {}
+
+  public static JWTClaimsSet validate(String authHeader)
+      throws BadJOSEException, JOSEException, ParseException {
+
+    if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+      throw new IllegalArgumentException("Missing Bearer token");
     }
 
-    try {
-      System.out.println("🔄 Configurando JWT Service...");
-      System.out.println("   -> JWKS URL: " + JWKS_URL);
-      System.out.println("   -> ISSUER ESPERADO: " + ISSUER);
+    ensureInitialized();
+    String token = authHeader.substring("Bearer ".length()).trim();
+    return JWT_PROC.process(token, null);
+  }
 
-      String jwksJson = fetchJwks(JWKS_URL);
+  private static synchronized void ensureInitialized() {
+    if (JWT_PROC != null) return;
+
+    try {
+      String jwksUrl = System.getenv("AZURE_AD_B2C_JWKS_URL");
+      String issuer  = System.getenv("AZURE_AD_B2C_ISSUER");
+      String audience = System.getenv("API_APP_ID_URI");
+
+      if (jwksUrl == null || issuer == null || audience == null) {
+        throw new IllegalStateException("Faltan variables de entorno JWT");
+      }
+
+      String jwksJson = fetchJwks(jwksUrl);
 
       JWKSet jwkSet = JWKSet.parse(jwksJson);
       JWKSource<SecurityContext> jwkSource = new ImmutableJWKSet<>(jwkSet);
 
-      DefaultJWTProcessor<SecurityContext> processor = new DefaultJWTProcessor<>();
-      JWSKeySelector<SecurityContext> keySelector = new JWSVerificationKeySelector<>(JWSAlgorithm.RS256, jwkSource);
-      processor.setJWSKeySelector(keySelector);
+      DefaultJWTProcessor<SecurityContext> proc = new DefaultJWTProcessor<>();
+      proc.setJWSKeySelector(
+          new JWSVerificationKeySelector<>(JWSAlgorithm.RS256, jwkSource)
+      );
 
-      processor.setJWTClaimsSetVerifier((claims, ctx) -> {
-        
-        String iss = claims.getIssuer();
-        if (iss == null || !iss.contains(ISSUER.replace("/v2.0/", ""))) {
-           // Objects.equals(ISSUER, iss)
-           // System.out.println("Warning: Issuer mismatch. Recibido: " + iss);
-        }
+      proc.setJWTClaimsSetVerifier((claims, ctx) -> {
 
-        List<String> aud = claims.getAudience();
-        if (aud == null || !aud.contains(API_AUDIENCE)) {
-          throw new BadJWTException("Audience inválida. Esperaba: " + API_AUDIENCE + " Recibió: " + aud);
+        if (!claims.getAudience().contains(audience)) {
+          throw new BadJWTException("Audience inválida");
         }
 
         Date exp = claims.getExpirationTime();
@@ -71,33 +74,30 @@ public final class JwtAuthService {
         }
       });
 
-      JWT_PROC = processor;
-      System.out.println("JWT Service configurado correctamente.");
+      JWT_PROC = proc;
 
     } catch (Exception e) {
-      System.err.println("Error inicializando JwtAuthService: " + e.getMessage());
-      throw new RuntimeException("Error configurando JwtAuthService", e);
+      throw new RuntimeException("Error inicializando JwtAuthService", e);
     }
   }
 
-  private JwtAuthService() {}
+  private static String fetchJwks(String jwksUrl)
+      throws IOException, InterruptedException {
 
-  public static JWTClaimsSet validate(String authHeader) throws BadJOSEException, JOSEException, ParseException {
-    if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-      throw new IllegalArgumentException("Missing Bearer token");
-    }
-    String token = authHeader.substring("Bearer ".length()).trim();
-    return JWT_PROC.process(token, null);
-  }
+    HttpClient client = HttpClient.newHttpClient();
+    HttpRequest req = HttpRequest.newBuilder()
+        .uri(URI.create(jwksUrl))
+        .timeout(Duration.ofSeconds(5))
+        .GET()
+        .build();
 
-  private static String fetchJwks(String jwksUrl) throws IOException, InterruptedException {
-    HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(2)).build();
-    HttpRequest req = HttpRequest.newBuilder().uri(URI.create(jwksUrl)).timeout(Duration.ofSeconds(5)).GET().build();
-    HttpResponse<String> resp = client.send(req, HttpResponse.BodyHandlers.ofString());
-    
+    HttpResponse<String> resp =
+        client.send(req, HttpResponse.BodyHandlers.ofString());
+
     if (resp.statusCode() != 200) {
-      throw new IOException("Error fetching JWKS: HTTP " + resp.statusCode());
+      throw new IOException("Error fetching JWKS");
     }
+
     return resp.body();
   }
 }
