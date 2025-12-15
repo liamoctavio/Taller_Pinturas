@@ -38,54 +38,130 @@ public class EventosFunction {
         .configure(MapperFeature.ACCEPT_CASE_INSENSITIVE_PROPERTIES, true)
         .build();
 
+  // @FunctionName("eventosRoot")
+  // public HttpResponseMessage eventosRoot(
+  //     @HttpTrigger(name = "req", methods = { HttpMethod.GET,
+  //         HttpMethod.POST }, authLevel = AuthorizationLevel.ANONYMOUS, route = "eventos") HttpRequestMessage<Optional<String>> request,
+  //     final ExecutionContext ctx) throws Exception {
+
+  //   ctx.getLogger().info(">>> 1. INICIANDO FUNCTION EVENTOS ROOT");
+    
+  //   String authHeader = firstNonNullHeader(request, "Authorization", "authorization");
+    
+  //   if (authHeader == null) {
+  //       ctx.getLogger().severe(">>> 2. ALERTA ROJA: El Header Authorization es NULL. El BFF no lo envió.");
+  //   } else {
+  //       String preview = authHeader.length() > 10 ? authHeader.substring(0, 10) + "..." : authHeader;
+  //       ctx.getLogger().info(">>> 2. Header recibido: " + preview);
+  //   }
+  //   // -------------------------
+
+  //   try {
+  //     JWTClaimsSet claims = JwtAuthService.validate(authHeader);
+  //     String subject = claims.getSubject();
+  //     String email = claims.getStringClaim("preferred_username");
+
+  //     ctx.getLogger().info(">>> 3. Token VALIDADO para: " + subject + " (" + email + ")");
+  //   } catch (IllegalArgumentException iae) {
+  //     ctx.getLogger().severe(">>> ERROR AUTH (Argumento): " + iae.getMessage());
+  //     return request.createResponseBuilder(HttpStatus.UNAUTHORIZED)
+  //         .header(HttpConstants.CONTENT_TYPE, HttpConstants.APPLICATION_JSON)
+  //         .body(HttpConstants.ERROR_MISSING_AUTH)
+  //         .build();
+  //   } catch (Exception e) {
+  //     ctx.getLogger().severe(">>> ERROR AUTH (Validación): " + e.getMessage());
+  //     e.printStackTrace(); 
+  //     return request.createResponseBuilder(HttpStatus.UNAUTHORIZED)
+  //         .header(HttpConstants.CONTENT_TYPE, HttpConstants.APPLICATION_JSON)
+  //         .body("{\"error\": \"Token invalido: " + e.getMessage() + "\"}")
+  //         .build();
+  //   }
+
+  //   switch (request.getHttpMethod()) {
+  //     case GET:
+  //       return listar(request);
+  //     case POST:
+  //       return crear(request);
+  //     default:
+  //       return request.createResponseBuilder(HttpStatus.METHOD_NOT_ALLOWED).build();
+  //   }
+  // }
+
   @FunctionName("eventosRoot")
   public HttpResponseMessage eventosRoot(
       @HttpTrigger(name = "req", methods = { HttpMethod.GET,
           HttpMethod.POST }, authLevel = AuthorizationLevel.ANONYMOUS, route = "eventos") HttpRequestMessage<Optional<String>> request,
       final ExecutionContext ctx) throws Exception {
 
-    ctx.getLogger().info(">>> 1. INICIANDO FUNCTION EVENTOS ROOT");
-    
-    String authHeader = firstNonNullHeader(request, "Authorization", "authorization");
-    
-    if (authHeader == null) {
-        ctx.getLogger().severe(">>> 2. ALERTA ROJA: El Header Authorization es NULL. El BFF no lo envió.");
-    } else {
-        String preview = authHeader.length() > 10 ? authHeader.substring(0, 10) + "..." : authHeader;
-        ctx.getLogger().info(">>> 2. Header recibido: " + preview);
-    }
-    // -------------------------
+    ctx.getLogger().info(">>> 1. INICIANDO FUNCTION EVENTOS ROOT: " + request.getHttpMethod());
 
-    try {
-      JWTClaimsSet claims = JwtAuthService.validate(authHeader);
-      String subject = claims.getSubject();
-      String email = claims.getStringClaim("preferred_username");
-
-      ctx.getLogger().info(">>> 3. Token VALIDADO para: " + subject + " (" + email + ")");
-    } catch (IllegalArgumentException iae) {
-      ctx.getLogger().severe(">>> ERROR AUTH (Argumento): " + iae.getMessage());
-      return request.createResponseBuilder(HttpStatus.UNAUTHORIZED)
-          .header(HttpConstants.CONTENT_TYPE, HttpConstants.APPLICATION_JSON)
-          .body(HttpConstants.ERROR_MISSING_AUTH)
-          .build();
-    } catch (Exception e) {
-      ctx.getLogger().severe(">>> ERROR AUTH (Validación): " + e.getMessage());
-      e.printStackTrace(); 
-      return request.createResponseBuilder(HttpStatus.UNAUTHORIZED)
-          .header(HttpConstants.CONTENT_TYPE, HttpConstants.APPLICATION_JSON)
-          .body("{\"error\": \"Token invalido: " + e.getMessage() + "\"}")
-          .build();
-    }
+    // YA NO VALIDAMOS AQUÍ. DEJAMOS PASAR EL FLUJO AL SWITCH.
 
     switch (request.getHttpMethod()) {
       case GET:
+        // ¡Público! No pide token.
         return listar(request);
+
       case POST:
+        // ¡Privado! Validamos token antes de crear.
+        if (!esTokenValido(request, ctx)) {
+             return request.createResponseBuilder(HttpStatus.UNAUTHORIZED)
+                 .header(HttpConstants.CONTENT_TYPE, HttpConstants.APPLICATION_JSON)
+                 .body(HttpConstants.ERROR_INVALID_AUTH).build();
+        }
         return crear(request);
+
       default:
         return request.createResponseBuilder(HttpStatus.METHOD_NOT_ALLOWED).build();
     }
   }
+
+// Valida el token y devuelve true/false SOLO LOGIN PUEDE VER EL GET LISTA
+  // @FunctionName("eventosById")
+  // public HttpResponseMessage eventosById(
+  //     @HttpTrigger(name = "req", methods = { HttpMethod.GET, HttpMethod.PUT,
+  //         HttpMethod.DELETE }, authLevel = AuthorizationLevel.ANONYMOUS, route = "eventos/{id}") HttpRequestMessage<Optional<String>> request,
+  //     @BindingName("id") String idStr,
+  //     final ExecutionContext ctx) throws Exception {
+
+  //   // validar token
+  //   String authHeader = firstNonNullHeader(request, "Authorization", "authorization");
+  //   try {
+  //     JwtAuthService.validate(authHeader);
+  //   } catch (IllegalArgumentException iae) {
+  //     return request.createResponseBuilder(HttpStatus.UNAUTHORIZED)
+  //         .header(HttpConstants.CONTENT_TYPE, HttpConstants.APPLICATION_JSON)
+  //         .body(HttpConstants.ERROR_MISSING_AUTH)
+  //         .build();
+  //   } catch (Exception e) {
+  //     ctx.getLogger().severe("Service token validation failed: " + e.getMessage());
+  //     return request.createResponseBuilder(HttpStatus.UNAUTHORIZED)
+  //         .header(HttpConstants.CONTENT_TYPE, HttpConstants.APPLICATION_JSON)
+  //         .body(HttpConstants.ERROR_INVALID_AUTH)
+  //         .build();
+  //   }
+
+  //   long id;
+  //   try {
+  //     id = Long.parseLong(idStr);
+  //   } catch (NumberFormatException e) {
+  //     return request.createResponseBuilder(HttpStatus.BAD_REQUEST)
+  //         .header(HttpConstants.CONTENT_TYPE, HttpConstants.APPLICATION_JSON)
+  //         .body("{\"error\":\"id inválido\"}")
+  //         .build();
+  //   }
+
+  //   switch (request.getHttpMethod()) {
+  //     case GET:
+  //       return obtener(request, id);
+  //     case PUT:
+  //       return actualizar(request, id);
+  //     case DELETE:
+  //       return eliminar(request, id);
+  //     default:
+  //       return request.createResponseBuilder(HttpStatus.METHOD_NOT_ALLOWED).build();
+  //   }
+  // }
 
   @FunctionName("eventosById")
   public HttpResponseMessage eventosById(
@@ -94,43 +170,61 @@ public class EventosFunction {
       @BindingName("id") String idStr,
       final ExecutionContext ctx) throws Exception {
 
-    // validar token
-    String authHeader = firstNonNullHeader(request, "Authorization", "authorization");
-    try {
-      JwtAuthService.validate(authHeader);
-    } catch (IllegalArgumentException iae) {
-      return request.createResponseBuilder(HttpStatus.UNAUTHORIZED)
-          .header(HttpConstants.CONTENT_TYPE, HttpConstants.APPLICATION_JSON)
-          .body(HttpConstants.ERROR_MISSING_AUTH)
-          .build();
-    } catch (Exception e) {
-      ctx.getLogger().severe("Service token validation failed: " + e.getMessage());
-      return request.createResponseBuilder(HttpStatus.UNAUTHORIZED)
-          .header(HttpConstants.CONTENT_TYPE, HttpConstants.APPLICATION_JSON)
-          .body(HttpConstants.ERROR_INVALID_AUTH)
-          .build();
-    }
-
+    // 1. Validamos que el ID sea numérico (esto aplica para todos)
     long id;
     try {
       id = Long.parseLong(idStr);
     } catch (NumberFormatException e) {
       return request.createResponseBuilder(HttpStatus.BAD_REQUEST)
           .header(HttpConstants.CONTENT_TYPE, HttpConstants.APPLICATION_JSON)
-          .body("{\"error\":\"id inválido\"}")
-          .build();
+          .body("{\"error\":\"id inválido\"}").build();
     }
 
+    // 2. Decidimos según el método
     switch (request.getHttpMethod()) {
       case GET:
+        // ¡Público! Cualquiera puede ver el detalle.
         return obtener(request, id);
+
       case PUT:
+        // ¡Privado! Solo usuarios logueados pueden intentar editar.
+        if (!esTokenValido(request, ctx)) {
+            return request.createResponseBuilder(HttpStatus.UNAUTHORIZED)
+                .header(HttpConstants.CONTENT_TYPE, HttpConstants.APPLICATION_JSON)
+                .body(HttpConstants.ERROR_INVALID_AUTH).build();
+        }
         return actualizar(request, id);
+
       case DELETE:
+        // ¡Privado! Solo usuarios logueados pueden intentar borrar.
+        if (!esTokenValido(request, ctx)) {
+            return request.createResponseBuilder(HttpStatus.UNAUTHORIZED)
+                .header(HttpConstants.CONTENT_TYPE, HttpConstants.APPLICATION_JSON)
+                .body(HttpConstants.ERROR_INVALID_AUTH).build();
+        }
         return eliminar(request, id);
+
       default:
         return request.createResponseBuilder(HttpStatus.METHOD_NOT_ALLOWED).build();
     }
+  }
+
+  // Método auxiliar para validar token solo cuando sea necesario (POST, PUT, DELETE)
+  private boolean esTokenValido(HttpRequestMessage<?> request, ExecutionContext ctx) {
+      String authHeader = firstNonNullHeader(request, "Authorization", "authorization");
+      
+      if (authHeader == null) {
+          ctx.getLogger().warning("Intento de escritura sin Header Authorization");
+          return false;
+      }
+
+      try {
+          JwtAuthService.validate(authHeader);
+          return true; // Token OK
+      } catch (Exception e) {
+          ctx.getLogger().warning("Token inválido en operación de escritura: " + e.getMessage());
+          return false;
+      }
   }
 
   private HttpResponseMessage listar(HttpRequestMessage<?> req) throws Exception {

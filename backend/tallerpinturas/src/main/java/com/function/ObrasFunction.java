@@ -36,6 +36,39 @@ public class ObrasFunction {
         .configure(MapperFeature.ACCEPT_CASE_INSENSITIVE_PROPERTIES, true)
         .build();
 
+  // @FunctionName("obrasRoot")
+  // public HttpResponseMessage obrasRoot(
+  //     @HttpTrigger(name = "req",
+  //         methods = {HttpMethod.GET, HttpMethod.POST},
+  //         authLevel = AuthorizationLevel.ANONYMOUS,
+  //         route = "obras")
+  //     HttpRequestMessage<Optional<String>> request,
+  //     final ExecutionContext ctx) throws Exception {
+
+  //   // validar token de servicio
+  //   String authHeader = firstNonNullHeader(request, "Authorization", "authorization");
+  //   try {
+  //     JWTClaimsSet claims = com.function.auth.JwtAuthService.validate(authHeader);
+  //     // opcional: usar claims si necesario
+  //   } catch (IllegalArgumentException iae) {
+  //     return request.createResponseBuilder(HttpStatus.UNAUTHORIZED)
+  //         .header("Content-Type","application/json")
+  //         .body("{\"error\":\"Missing or malformed Authorization header\"}")
+  //         .build();
+  //   } catch (Exception e) {
+  //     ctx.getLogger().severe("Service token validation failed: " + e.getMessage());
+  //     return request.createResponseBuilder(HttpStatus.UNAUTHORIZED)
+  //         .header("Content-Type","application/json")
+  //         .body("{\"error\":\"Invalid service token\"}")
+  //         .build();
+  //   }
+
+  //   switch (request.getHttpMethod()) {
+  //     case GET:  return listar(request);
+  //     case POST: return crear(request, ctx);
+  //     default:   return request.createResponseBuilder(HttpStatus.METHOD_NOT_ALLOWED).build();
+  //   }
+  // }
   @FunctionName("obrasRoot")
   public HttpResponseMessage obrasRoot(
       @HttpTrigger(name = "req",
@@ -45,31 +78,70 @@ public class ObrasFunction {
       HttpRequestMessage<Optional<String>> request,
       final ExecutionContext ctx) throws Exception {
 
-    // validar token de servicio
-    String authHeader = firstNonNullHeader(request, "Authorization", "authorization");
-    try {
-      JWTClaimsSet claims = com.function.auth.JwtAuthService.validate(authHeader);
-      // opcional: usar claims si necesario
-    } catch (IllegalArgumentException iae) {
-      return request.createResponseBuilder(HttpStatus.UNAUTHORIZED)
-          .header("Content-Type","application/json")
-          .body("{\"error\":\"Missing or malformed Authorization header\"}")
-          .build();
-    } catch (Exception e) {
-      ctx.getLogger().severe("Service token validation failed: " + e.getMessage());
-      return request.createResponseBuilder(HttpStatus.UNAUTHORIZED)
-          .header("Content-Type","application/json")
-          .body("{\"error\":\"Invalid service token\"}")
-          .build();
-    }
+    // YA NO VALIDAMOS AQUÍ ARRIBA.
 
     switch (request.getHttpMethod()) {
-      case GET:  return listar(request);
-      case POST: return crear(request, ctx);
-      default:   return request.createResponseBuilder(HttpStatus.METHOD_NOT_ALLOWED).build();
+      case GET:
+        // ¡Público!
+        return listar(request);
+
+      case POST:
+        // ¡Privado! Validamos token antes de crear
+        if (!esTokenValido(request, ctx)) {
+            return request.createResponseBuilder(HttpStatus.UNAUTHORIZED)
+                .header("Content-Type","application/json")
+                .body("{\"error\":\"Missing or malformed Authorization header\"}")
+                .build();
+        }
+        return crear(request, ctx);
+
+      default:
+        return request.createResponseBuilder(HttpStatus.METHOD_NOT_ALLOWED).build();
     }
   }
 
+  // @FunctionName("obrasById")
+  // public HttpResponseMessage obrasById(
+  //     @HttpTrigger(name = "req",
+  //         methods = {HttpMethod.GET, HttpMethod.PUT, HttpMethod.DELETE},
+  //         authLevel = AuthorizationLevel.ANONYMOUS,
+  //         route = "obras/{id}")
+  //     HttpRequestMessage<Optional<String>> request,
+  //     @BindingName("id") String idStr,
+  //     final ExecutionContext ctx) throws Exception {
+
+  //   // validar token de servicio
+  //   String authHeader = firstNonNullHeader(request, "Authorization", "authorization");
+  //   try {
+  //     com.function.auth.JwtAuthService.validate(authHeader);
+  //   } catch (IllegalArgumentException iae) {
+  //     return request.createResponseBuilder(HttpStatus.UNAUTHORIZED)
+  //         .header("Content-Type","application/json")
+  //         .body("{\"error\":\"Missing or malformed Authorization header\"}")
+  //         .build();
+  //   } catch (Exception e) {
+  //     ctx.getLogger().severe("Service token validation failed: " + e.getMessage());
+  //     return request.createResponseBuilder(HttpStatus.UNAUTHORIZED)
+  //         .header("Content-Type","application/json")
+  //         .body("{\"error\":\"Invalid service token\"}")
+  //         .build();
+  //   }
+
+  //   long id;
+  //   try { id = Long.parseLong(idStr); }
+  //   catch (NumberFormatException e) {
+  //     return request.createResponseBuilder(HttpStatus.BAD_REQUEST)
+  //         .body("{\"error\":\"id inválido\"}")
+  //         .header("Content-Type","application/json").build();
+  //   }
+
+  //   switch (request.getHttpMethod()) {
+  //     case GET:    return obtener(request, id);
+  //     case PUT:    return actualizar(request, id, ctx);
+  //     case DELETE: return eliminar(request, id);
+  //     default:     return request.createResponseBuilder(HttpStatus.METHOD_NOT_ALLOWED).build();
+  //   }
+  // }
   @FunctionName("obrasById")
   public HttpResponseMessage obrasById(
       @HttpTrigger(name = "req",
@@ -80,37 +152,60 @@ public class ObrasFunction {
       @BindingName("id") String idStr,
       final ExecutionContext ctx) throws Exception {
 
-    // validar token de servicio
-    String authHeader = firstNonNullHeader(request, "Authorization", "authorization");
-    try {
-      com.function.auth.JwtAuthService.validate(authHeader);
-    } catch (IllegalArgumentException iae) {
-      return request.createResponseBuilder(HttpStatus.UNAUTHORIZED)
-          .header("Content-Type","application/json")
-          .body("{\"error\":\"Missing or malformed Authorization header\"}")
-          .build();
-    } catch (Exception e) {
-      ctx.getLogger().severe("Service token validation failed: " + e.getMessage());
-      return request.createResponseBuilder(HttpStatus.UNAUTHORIZED)
-          .header("Content-Type","application/json")
-          .body("{\"error\":\"Invalid service token\"}")
-          .build();
-    }
-
+    // 1. Validar ID primero (común para todos)
     long id;
-    try { id = Long.parseLong(idStr); }
-    catch (NumberFormatException e) {
+    try {
+      id = Long.parseLong(idStr);
+    } catch (NumberFormatException e) {
       return request.createResponseBuilder(HttpStatus.BAD_REQUEST)
           .body("{\"error\":\"id inválido\"}")
           .header("Content-Type","application/json").build();
     }
 
+    // 2. Switch con validación interna
     switch (request.getHttpMethod()) {
-      case GET:    return obtener(request, id);
-      case PUT:    return actualizar(request, id, ctx);
-      case DELETE: return eliminar(request, id);
-      default:     return request.createResponseBuilder(HttpStatus.METHOD_NOT_ALLOWED).build();
+      case GET:
+        // ¡Público!
+        return obtener(request, id);
+
+      case PUT:
+        // ¡Privado!
+        if (!esTokenValido(request, ctx)) {
+            return request.createResponseBuilder(HttpStatus.UNAUTHORIZED)
+                .header("Content-Type","application/json")
+                .body("{\"error\":\"Invalid service token\"}")
+                .build();
+        }
+        return actualizar(request, id, ctx);
+
+      case DELETE:
+        // ¡Privado!
+        if (!esTokenValido(request, ctx)) {
+             return request.createResponseBuilder(HttpStatus.UNAUTHORIZED)
+                .header("Content-Type","application/json")
+                .body("{\"error\":\"Invalid service token\"}")
+                .build();
+        }
+        return eliminar(request, id);
+
+      default:
+        return request.createResponseBuilder(HttpStatus.METHOD_NOT_ALLOWED).build();
     }
+  }
+
+  // Helper para validar token bajo demanda
+  private boolean esTokenValido(HttpRequestMessage<?> request, ExecutionContext ctx) {
+      String authHeader = firstNonNullHeader(request, "Authorization", "authorization");
+      
+      if (authHeader == null) return false;
+
+      try {
+          com.function.auth.JwtAuthService.validate(authHeader);
+          return true;
+      } catch (Exception e) {
+          ctx.getLogger().warning("Token validation failed: " + e.getMessage());
+          return false;
+      }
   }
 
   // LISTAR (sin imagen por defecto)
