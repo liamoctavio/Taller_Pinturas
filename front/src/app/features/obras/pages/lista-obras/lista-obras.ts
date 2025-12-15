@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, inject, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, inject, OnInit } from '@angular/core';
 import { Router, RouterModule } from '@angular/router';
 import { MsalService } from '@azure/msal-angular';
 import { Obras } from '../../services/obras';
@@ -35,10 +35,13 @@ export class ListaObras implements OnInit {
   obraEditando: any = {}; // ID de la obra que se está editando
   guardandoCambios = false;
 
-
+  // NUEVO: Variable para el Lightbox
+  obraSeleccionada: any = null;
   private authService = inject(Authservices); // servicio de auth login
 
   usuarioLogueado: any = null;
+
+  private cd = inject(ChangeDetectorRef)
 
   ngOnInit() {
 
@@ -47,61 +50,21 @@ export class ListaObras implements OnInit {
 
     this.cargarObras();
   }
-//FUNCIONA PERFECT
-  // puedeEditar(obra: any): boolean {
-  //   // REGLA 1: Debe estar logueado
-  //   if (!this.usuarioLogueado) return false;
-
-  //   // REGLA 2 (OPCIONAL): ¿Es mi foto? 
-  //   // Comparamos el email de Azure con el username de la base de datos
-  //   // Ojo: Asegúrate que tu DB guarde el email completo o ajusta esta lógica.
-  //   // return this.usuarioLogueado.username === obra.username;
-    
-  //   // POR AHORA: Si está logueado, puede editar todo (Modo simple)
-  //   return true; 
-  // }
-
-  // puedeEditar(obra: any): boolean {
-  //   // 1. Si no hay nadie logueado, nadie edita.
-  //   if (!this.usuarioLogueado || !this.usuarioLogueado.localAccountId) {
-  //       return false;
-  //   }
-  //   // 2. ¿Soy Admin? (Opcional, pero recomendado)
-  //   // Si tienes implementado el método esAdmin() en tu servicio, úsalo:
-  //   // if (this.authService.esAdmin()) {
-  //   //     return true; 
-  //   // }
-
-  //   // 3. COMPARACIÓN DE DUEÑO
-  //   // Mi ID (del login)
-  //   const miId = this.usuarioLogueado.localAccountId.toLowerCase();
-    
-  //   // El ID de la obra (que ahora viene del Backend gracias al paso 1)
-  //   const obraId = obra.id_azure ? obra.id_azure.toLowerCase() : null;
-
-  //   // Si la obra no tiene dueño (es vieja), nadie la edita (salvo admin)
-  //   if (!obraId) return false;
-
-  //   // ¿Son iguales?
-  //   return miId === obraId; 
-  // }
 
   puedeEditar(obra: any): boolean {
-    // 1. LOG DE DEPURACIÓN (Solo para ver si está llegando el rol)
-     console.log('Soy Admin?', this.authService.esAdmin());
+    // 1. Si es Admin, tiene superpoderes
+    if (this.authService.esAdmin()) return true;
 
-    // 2. REGLA SUPREMA: Si es Admin, puede editar TODO.
-    if (this.authService.esAdmin()) {
-        return true; 
-    }
-
-    // 3. REGLA DE PROPIEDAD: Si no es Admin, revisamos si es el dueño
-    if (!this.usuarioLogueado || !this.usuarioLogueado.localAccountId) {
-        return false;
-    }
+    // 2. Si no hay usuario logueado, nadie edita
+    if (!this.usuarioLogueado || !this.usuarioLogueado.localAccountId) return false;
 
     const miId = this.usuarioLogueado.localAccountId.toLowerCase();
-    const obraId = obra.id_azure ? obra.id_azure.toLowerCase() : null;
+
+    // 3. BUSQUEDA ROBUSTA DEL ID DEL DUEÑO
+    // Intentamos encontrar el ID en todas las variantes posibles que mandan los backends Java
+    const rawId = obra.id_azure || obra.idAzure || obra.usuario?.id_azure || obra.usuario?.idAzure;
+    
+    const obraId = rawId ? rawId.toLowerCase() : null;
 
     if (!obraId) return false;
 
@@ -114,7 +77,7 @@ export class ListaObras implements OnInit {
       next: (datos) => {
         this.listaObras = datos;
         this.cargandoLista = false;
-        
+        this.cd.detectChanges();
         // TRUCO: Apenas llega la lista, salimos a buscar las fotos una por una
         this.cargarImagenesFaltantes();
       },
@@ -122,6 +85,7 @@ export class ListaObras implements OnInit {
         console.error(err);
         this.errorCarga = 'Error cargando la lista.';
         this.cargandoLista = false;
+        this.cd.detectChanges();
       }
     });
   }
@@ -136,6 +100,7 @@ export class ListaObras implements OnInit {
           if (obraConFoto.imagenBase64) {
             // Le agregamos la propiedad 'imagen' para que el HTML la detecte
             this.listaObras[index].imagenBase64 = obraConFoto.imagenBase64;
+            this.cd.detectChanges();
           }
         },
         error: (err) => console.error(`Error cargando foto ${obra.id_obra}`, err)
@@ -245,6 +210,15 @@ export class ListaObras implements OnInit {
           alert('Error al guardar cambios');
         }
       });
+  }
+
+  // --- LÓGICA DEL LIGHTBOX (VISUALIZADOR) ---
+  abrirVisualizador(obra: any) {
+    this.obraSeleccionada = obra;
+  }
+
+  cerrarVisualizador() {
+    this.obraSeleccionada = null;
   }
 
 

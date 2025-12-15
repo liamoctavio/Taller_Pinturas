@@ -1,15 +1,5 @@
-.table {
-    th {
-        font-weight: 600;
-        text-transform: uppercase;
-        font-size: 0.85rem;
-        color: #6c757d;
-        padding-top: 1rem;
-        padding-bottom: 1rem;
-    }
-    
-    td {
-        padding-top: 1rem;
-        padding-bottom: 1rem;
-    }
-}
+// Opción A: Usando el nuevo sistema de módulos de Sass
+@use "bootstrap/scss/bootstrap";
+
+// Opción B (Recomendada): Importar el CSS compilado directamente si no vas a modificar variables de Bootstrap
+@import "bootstrap/dist/css/bootstrap.min.css";

@@ -3,12 +3,12 @@ import { Component, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Eventos } from '../../services/eventos';
 import { Authservices } from '../../../auth/services/authservices';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 
 @Component({
   selector: 'app-nuevo-evento',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, RouterLink],
   templateUrl: './nuevo-evento.html',
   styleUrl: './nuevo-evento.scss',
 })

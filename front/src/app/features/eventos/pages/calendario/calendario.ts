@@ -1,4 +1,4 @@
-import { Component, inject, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, inject, OnInit } from '@angular/core';
 import { Evento, Eventos } from '../../services/eventos';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
@@ -16,6 +16,7 @@ export class Calendario implements OnInit {
 
   private eventosService = inject(Eventos); // servicio de eventos
   private authService = inject(Authservices); // servicio de auth login
+  usuarioLogueado: boolean = false;
 
   eventos: any[] = [];
   cargando = true;
@@ -24,7 +25,10 @@ export class Calendario implements OnInit {
   eventoEditando: any = {};
   guardando = false;
 
+  private cd = inject(ChangeDetectorRef);
+
   ngOnInit() {
+    this.usuarioLogueado = this.authService.isLoggedIn();
     this.cargarEventos();
   }
 
@@ -55,6 +59,7 @@ export class Calendario implements OnInit {
           };
         });
         this.cargando = false;
+        this.cd.detectChanges();
       },
       error: (err) => { console.error(err); this.cargando = false; }
     });

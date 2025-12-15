@@ -4,11 +4,12 @@ import { MsalModule } from '@azure/msal-angular';
 import { Navbar } from './shared/components/navbar/navbar';
 import { Usuarios } from './features/usuarios/services/usuarios';
 import { CommonModule } from '@angular/common';
+import { Footer } from './shared/components/footer/footer';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet, MsalModule,Navbar, CommonModule],
+  imports: [RouterOutlet, MsalModule,Navbar, CommonModule, Footer],
   templateUrl: './app.html',
   styleUrl: './app.scss'
 })

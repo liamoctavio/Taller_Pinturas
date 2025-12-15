@@ -1,6 +1,6 @@
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm">
   <div class="container">
-    <a class="navbar-brand fw-bold" routerLink="/">
+    <a class="navbar-brand fw-bold" routerLink="/home">
       <i class="bi bi-palette-fill"></i> Galería Arte
     </a>
 
@@ -24,6 +24,12 @@
           </a>
         </li>
 
+        <li class="nav-item">
+          <a class="nav-link" routerLink="/contacto" routerLinkActive="active">
+            Contacto
+          </a>
+        </li>
+
         <li class="nav-item" *ngIf="authService.esAdmin()">
             <a class="nav-link text-warning" routerLink="/usuarios" routerLinkActive="active">
               <i class="bi bi-people-fill"></i> Gestión Usuarios
@@ -42,7 +48,7 @@
         </ng-container>
 
         <ng-template #btnLogin>
-          <button (click)="login()" class="btn btn-primary btn-sm">
+          <button routerLink="/login" class="btn btn-primary btn-sm">
             Iniciar Sesión
           </button>
         </ng-template>

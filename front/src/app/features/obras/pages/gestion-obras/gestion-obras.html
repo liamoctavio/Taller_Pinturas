@@ -1,71 +1,80 @@
-<!-- <div class="container mt-5">
-  <div class="card shadow-sm">
-    <div class="card-header bg-primary text-white">
-      <h3 class="mb-0">Subir Nueva Obra</h3>
-    </div>
-    
-    <div class="card-body">
-      <form [formGroup]="formulario" (ngSubmit)="guardarObra()">
-        
-        <div class="mb-3">
-          <label class="form-label">Título de la Obra</label>
-          <input type="text" class="form-control" formControlName="titulo" placeholder="Ej: Atardecer en la playa">
-        </div>
-
-        <div class="mb-3">
-          <label class="form-label">Descripción</label>
-          <textarea class="form-control" formControlName="descripcion" rows="3" placeholder="Detalles técnicos, inspiración..."></textarea>
-        </div>
-
-        <div class="row">
-          <div class="col-md-6 mb-3">
-            <label class="form-label">Precio (CLP)</label>
-            <input type="number" class="form-control" formControlName="precio">
-          </div>
-          
-          <div class="col-md-6 mb-3">
-            <label class="form-label">URL de la Imagen</label>
-            <input type="text" class="form-control" formControlName="imagenUrl" placeholder="https://...">
-            <div class="form-text">Pega una URL de imagen para probar (ej: https://picsum.photos/400/300)</div>
-          </div>
-        </div>
-
-        <div class="d-flex justify-content-end gap-2 mt-4">
-          <button type="button" (click)="cancelar()" class="btn btn-secondary">Cancelar</button>
-          <button type="submit" class="btn btn-success" [disabled]="formulario.invalid">
-            <i class="bi bi-save"></i> Publicar Obra
-          </button>
-        </div>
-
-      </form>
-    </div>
-  </div>
-</div> -->
-<div class="container-obra">
-  <h2>🎨 Subir Nueva Obra</h2>
+<div class="upload-container fade-in">
   
-  <div class="form-group">
-    <label>Título de la obra:</label>
-    <input type="text" [(ngModel)]="nuevaObra.titulo" class="input-field" placeholder="Ej: Atardecer en el puerto">
+  <div class="upload-card">
+    
+    <div class="image-section" 
+         [class.drag-active]="isDragging"
+         (dragover)="onDragOver($event)" 
+         (dragleave)="onDragLeave($event)"
+         (drop)="onDrop($event)">
+      
+      <input type="file" #fileInput (change)="onFileSelected($event)" accept="image/*" hidden>
+
+      <div *ngIf="!previewUrl" class="upload-placeholder" (click)="fileInput.click()">
+        <div class="icon-circle">
+          <i class="bi bi-cloud-arrow-up-fill"></i>
+        </div>
+        <h3>Sube tu obra maestra</h3>
+        <p>Arrastra tu imagen aquí o haz clic para buscar</p>
+        <span class="file-info">Soporta JPG, PNG (Max 5MB)</span>
+      </div>
+
+      <div *ngIf="previewUrl" class="preview-container">
+        <img [src]="previewUrl" class="preview-image" alt="Vista previa">
+        
+        <button class="btn-remove-image" (click)="removerImagen()" title="Cambiar imagen">
+          <i class="bi bi-x-lg"></i>
+        </button>
+        
+        <div class="preview-badge">
+          <i class="bi bi-image"></i> Vista Previa
+        </div>
+      </div>
+
+    </div>
+
+    <div class="form-section">
+      <div class="form-header">
+        <h2>Detalles de la Obra</h2>
+        <p>Cuenta la historia detrás del arte</p>
+      </div>
+
+      <div class="form-group">
+        <label for="titulo">Título de la obra</label>
+        <input type="text" id="titulo" 
+               [(ngModel)]="nuevaObra.titulo" 
+               class="modern-input" 
+               placeholder="Ej. Atardecer en el Sena">
+      </div>
+
+      <div class="form-group">
+        <label for="desc">Descripción / Historia</label>
+        <textarea id="desc" 
+                  [(ngModel)]="nuevaObra.descripcion" 
+                  class="modern-textarea" 
+                  rows="5" 
+                  placeholder="¿Qué te inspiró a crear esto?"></textarea>
+      </div>
+
+      <div *ngIf="mensajeError" class="error-banner">
+        <i class="bi bi-exclamation-circle-fill"></i> {{ mensajeError }}
+      </div>
+
+      <div class="form-actions">
+        <button routerLink="/obras" class="btn-cancel">Cancelar</button>
+        
+        <button (click)="guardar()" 
+                [disabled]="loading || !previewUrl || !nuevaObra.titulo" 
+                class="btn-publish">
+          <span *ngIf="!loading">
+            <i class="bi bi-palette2"></i> Publicar Obra
+          </span>
+          <span *ngIf="loading" class="loading-state">
+            <div class="spinner-tiny"></div> Subiendo...
+          </span>
+        </button>
+      </div>
+
+    </div>
   </div>
-
-  <div class="form-group">
-    <label>Descripción:</label>
-    <textarea [(ngModel)]="nuevaObra.descripcion" class="input-field" rows="3"></textarea>
-  </div>
-
-  <div class="form-group">
-    <label>Imagen:</label>
-    <input type="file" (change)="onFileSelected($event)" accept="image/*">
-  </div>
-
-  <div *ngIf="previewUrl" class="preview-box">
-    <img [src]="previewUrl" alt="Vista previa">
-  </div>
-
-  <p *ngIf="mensajeError" style="color: red;">{{ mensajeError }}</p>
-
-  <button (click)="guardar()" [disabled]="loading" class="btn-subir">
-    {{ loading ? 'Subiendo...' : 'Publicar Obra' }}
-  </button>
 </div>

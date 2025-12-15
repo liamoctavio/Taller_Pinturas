@@ -21,6 +21,18 @@ export const routes: Routes = [
   {
     path: 'usuarios',
     loadComponent: () => import('./features/usuarios/pages/lista-usuarios/lista-usuarios').then(c => c.ListaUsuarios)
+  },
+  {
+    path: 'home',
+    loadComponent: () => import('./features/home/home').then(c => c.Home)
+  },
+  {
+    path: 'contacto',
+    loadComponent: () => import('./features/contacto/contacto').then(c => c.Contacto)
+  },
+  { 
+    path: '**', 
+    loadComponent: () => import('./features/not-found/not-found').then(c => c.NotFound)
   }
 
 ];
