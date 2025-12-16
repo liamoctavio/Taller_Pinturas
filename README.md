@@ -154,8 +154,6 @@ Acceso local: 👉 [http://localhost:4200](http://localhost:4200)
 **Felipe Salgado**
 
 
-* 💼 LinkedIn: *[agregar enlace]*
-* 💻 GitHub: *[agregar enlace]*
 
 ---
 
