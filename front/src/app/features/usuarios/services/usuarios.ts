@@ -8,7 +8,7 @@ import { environment } from '../../../../environments/environment';
 export class Usuarios {
   private http = inject(HttpClient);
   
-  // Usamos la URL que definiste en el paso anterior
+  // Usamos la URL 
   private apiUrl = `${environment.apiUrl}/usuarios`; 
 
   getUsuarios() {

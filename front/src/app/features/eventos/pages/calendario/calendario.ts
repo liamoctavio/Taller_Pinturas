@@ -98,69 +98,6 @@ export class Calendario implements OnInit {
     });
   }
 
-  // // --- ABRIR EDITOR ---
-  // abrirEditor(evento: any) {
-  //   // Copiamos el evento para no modificar la tarjeta visualmente
-  //   this.eventoEditando = { ...evento };
-    
-  //   // TRUCO DE FECHA: El input datetime-local necesita formato "YYYY-MM-DDTHH:mm"
-  //   // La BD nos da "2025-12-06T15:30:00Z". Cortamos la 'Z' y los segundos si es necesario.
-  //   if (this.eventoEditando.fechaInicioRaw) {
-  //     this.eventoEditando.fechaInicioInput = this.eventoEditando.fechaInicioRaw.substring(0, 16);
-  //   }
-  //   if (this.eventoEditando.fechaTerminoRaw) {
-  //     this.eventoEditando.fechaTerminoInput = this.eventoEditando.fechaTerminoRaw.substring(0, 16);
-  //   }
-
-  //   // Aseguramos ID de Rol y Azure NULL para que no falle al guardar
-  //   this.eventoEditando.id_rol = 1; 
-  //   this.eventoEditando.id_azure = null;
-    
-  //   // Si el tipo viene como objeto, lo aplanamos al ID para el select
-  //   if (this.eventoEditando.tipo && this.eventoEditando.tipo.id_tipo_evento) {
-  //       this.eventoEditando.id_tipo_evento = this.eventoEditando.tipo.id_tipo_evento;
-  //   } else {
-  //       this.eventoEditando.id_tipo_evento = 1; // Default
-  //   }
-
-  //   this.modoEdicion = true;
-  // }
-
-  // abrirEditor(evento: any) {
-  //   // 1. Clonar el objeto para no romper la tarjeta visualmente
-  //   this.eventoEditando = { ...evento };
-
-  //   // 2. ARREGLAR LA DIRECCIÓN
-  //   // Si por alguna razón 'direccion' está vacío, usamos 'ubicacion'
-  //   if (!this.eventoEditando.direccion && this.eventoEditando.ubicacion) {
-  //       this.eventoEditando.direccion = this.eventoEditando.ubicacion;
-  //   }
-
-  //   // 3. ARREGLAR LAS FECHAS (El corte mágico)
-  //   // Backend envía: "2025-12-06T19:30:00Z"
-  //   // Input quiere:  "2025-12-06T19:30"
-    
-  //   if (this.eventoEditando.fechaInicioRaw) {
-  //     // Cortamos los primeros 16 caracteres
-  //     this.eventoEditando.fechaInicioInput = this.eventoEditando.fechaInicioRaw.substring(0, 16);
-  //   }
-    
-  //   if (this.eventoEditando.fechaTerminoRaw) {
-  //     this.eventoEditando.fechaTerminoInput = this.eventoEditando.fechaTerminoRaw.substring(0, 16);
-  //   }
-
-  //   // 4. Configurar IDs por defecto para evitar errores
-  //   this.eventoEditando.id_rol = 1;
-  //   this.eventoEditando.id_azure = null;
-    
-  //   // Aplanar el tipo de evento
-  //   if (this.eventoEditando.tipo && this.eventoEditando.tipo.id_tipo_evento) {
-  //       this.eventoEditando.id_tipo_evento = this.eventoEditando.tipo.id_tipo_evento;
-  //   }
-
-  //   // ¡Abrir el modal!
-  //   this.modoEdicion = true;
-  // }
   abrirEditor(evento: any) {
     // 1. Clonar el objeto
     this.eventoEditando = { ...evento };
@@ -178,26 +115,17 @@ export class Calendario implements OnInit {
       this.eventoEditando.fechaTerminoInput = this.eventoEditando.fechaTerminoRaw.substring(0, 16);
     }
 
-    // ============================================================
-    // CORRECCIÓN DE DUEÑO (AQUÍ ESTABA EL ERROR)
-    // ============================================================
-    
-    // Antes teníamos: this.eventoEditando.id_azure = null;  <-- ESTO BORRABA AL DUEÑO
-    
-    // Ahora hacemos esto:
+
     // Si el evento ya tiene un usuario asignado (objeto anidado), rescatamos su ID
     if (evento.usuario && evento.usuario.id_azure) {
         this.eventoEditando.id_azure = evento.usuario.id_azure;
     } 
-    // Si no tiene usuario (es null), lo dejamos tal cual o asignamos null
-    // (Pero NO lo forzamos a null si ya tenía uno)
 
     // El rol lo mantenemos en 1 o lo que traiga
     if (!this.eventoEditando.id_rol) {
         this.eventoEditando.id_rol = 1; 
     }
     
-    // ============================================================
 
     // Aplanar el tipo de evento
     if (this.eventoEditando.tipo && this.eventoEditando.tipo.id_tipo_evento) {
@@ -253,36 +181,6 @@ export class Calendario implements OnInit {
     });
   }
 
-  // NUEVA FUNCIÓN: Determina si muestro los botones
-  // puedeEditar(evento: any): boolean {
-  //   // 1. Si no estoy logueado, nadie puede editar
-  //   if (!this.authService.isLoggedIn()) {
-  //     return false;
-  //   }
-  //   const miUsuario = this.authService.getUser();
-  //   if (!miUsuario || !miUsuario.localAccountId) return false;
-
-  //   const miId = miUsuario.localAccountId.toLowerCase(); // Convertimos a minúscula
-
-  //   // 3. Obtener el ID del dueño del evento
-  //   // INTENTO 1: Buscar 'id_azure' (snake_case)
-  //   // INTENTO 2: Buscar 'idAzure' (camelCase) - A veces Java lo cambia
-  //   // INTENTO 3: Buscar 'usuario.id_azure' si viene anidado
-  //   const eventoIdRaw = evento.id_azure || evento.idAzure || evento.usuario?.id_azure;
-    
-  //   if (!eventoIdRaw) {
-  //     // Si el evento no tiene dueño (es antiguo o null), nadie edita (o solo Admin)
-  //     return false; 
-  //   }
-
-  //   const eventoId = eventoIdRaw.toLowerCase(); // Convertimos a minúscula
-
-  //   // 4. COMPARACIÓN (Debugging)
-  //   // Descomenta esta línea si quieres ver en la consola qué está comparando
-  //   // console.log(`Comparando: Mi ID [${miId}] vs Evento ID [${eventoId}] -> ${miId === eventoId}`);
-
-  //   return miId === eventoId;
-  // }
   puedeEditar(evento: any): boolean {
     // 1. Si es Admin, pase libre
     if (this.authService.esAdmin()) return true;
@@ -295,9 +193,7 @@ export class Calendario implements OnInit {
     const miId = usuario?.localAccountId?.toLowerCase();
     const eventoId = evento.id_azure ? evento.id_azure.toLowerCase() : null; // <--- AQUÍ LLEGABA NULL ANTES
 
-    // --- ESPÍA DE DEPURACIÓN (Borrar después) ---
-    // console.log(`Comparando: MIO=${miId} vs EVENTO=${eventoId}`); 
-    // ---------------------------------------------
+
 
     if (!miId || !eventoId) return false;
 

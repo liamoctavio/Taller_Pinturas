@@ -37,12 +37,9 @@ export class Obras {
     });
   }
 
-  // 2. Obtener detalle
-  // getObraPorId(id: number) {
-  //   return this.http.get<any>(`${this.apiUrl}/${id}`, { headers: this.getHeaders() });
-  // }
+
   getObraPorId(id: number) {
-    // AGREGAMOS ?includeImage=true AL FINAL
+
     return this.http.get<any>(`${this.apiUrl}/${id}?includeImage=true`, { 
         headers: this.getHeaders() 
     });

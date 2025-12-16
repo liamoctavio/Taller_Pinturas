@@ -163,17 +163,7 @@ export class ListaObras implements OnInit {
     }
   }
 
-  // guardarCambios() {
-  //   // Enviamos los cambios al backend
-  //   this.obrasService.editarObra(this.obraEditando.id_obra, this.obraEditando).subscribe({
-  //     next: (res) => {
-  //       alert('Cambios guardados');
-  //       this.cerrarEditor();
-  //       this.cargarObras(); // Recargamos la lista para ver los cambios
-  //     },
-  //     error: (err) => alert('Error al guardar cambios')
-  //   });
-  // }
+
   guardarCambios() {
     // Preservamos los datos que enviaremos porque vamos a cerrar el modal inmediatamente
     const payload = { ...this.obraEditando };
