@@ -19,21 +19,6 @@ El proyecto destaca por su **Arquitectura Distribuida Híbrida**, combinando la 
 
 ---
 
-## 🏗️ Arquitectura del Sistema
-
-El flujo de datos sigue un patrón estricto de seguridad y desacoplamiento, integrando múltiples nubes:
-
-```mermaid
-graph LR
-  Client[Angular Client] -- HTTPS --> BFF[Spring Boot BFF (AWS EC2)]
-  BFF -- HTTPS + Token --> AzureFunc[Azure Functions (Serverless)]
-  AzureFunc -- JDBC --> DB[(Azure SQL Database)]
-  AzureFunc -- Publish --> EventGrid[Azure Event Grid]
-
-  style BFF fill:#FF9900,stroke:#232F3E,stroke-width:2px,color:white
-  style AzureFunc fill:#0078D4,stroke:#333,stroke-width:2px,color:white
-```
-
 ### 🧱 Stack Tecnológico
 
 | Capa          | Tecnología                         | Plataforma                    |
