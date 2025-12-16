@@ -83,7 +83,7 @@ El proyecto destaca por su **Arquitectura Distribuida Híbrida**, combinando la 
 
 ### 📋 Prerrequisitos
 
-* Java JDK 17
+* Java JDK 20
 * Maven 3.8+
 * Node.js + Angular CLI
 * Azure CLI
