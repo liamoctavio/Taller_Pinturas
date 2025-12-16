@@ -137,10 +137,6 @@ Acceso local: 👉 [http://localhost:4200](http://localhost:4200)
   * JUnit 5 + Mockito.
   * Tests de lógica de negocio y seguridad (`src/test`).
 
-* **Performance**
-
-  * Puntuación **>90** en Google Lighthouse.
-
 * **Clean Code**
 
   * Separación clara: Controller / Service / Repository.
