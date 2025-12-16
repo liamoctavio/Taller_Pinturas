@@ -23,9 +23,9 @@ El proyecto destaca por su **Arquitectura Distribuida Híbrida**, combinando la 
 
 | Capa          | Tecnología                         | Plataforma                    |
 | ------------- | ---------------------------------- | ----------------------------- |
-| Frontend      | Angular 17 (Standalone Components) | Local / Web                   |
-| BFF           | Spring Boot WebFlux (Java 17)      | AWS EC2 (Docker)              |
-| Backend       | Azure Functions (Java 17)          | Azure Serverless              |
+| Frontend      | Angular 21 (Standalone Components) | Local / Web                   |
+| BFF           | Spring Boot WebFlux (Java 21)      | AWS EC2 (Docker)              |
+| Backend       | Azure Functions (Java 21)          | Azure Serverless              |
 | Base de Datos | Azure SQL Database                 | Azure                         |
 | Seguridad     | OAuth2 / OpenID Connect            | Microsoft Entra ID (Azure AD) |
 
