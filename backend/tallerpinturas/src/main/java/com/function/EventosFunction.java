@@ -1,6 +1,5 @@
 package com.function;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -18,7 +17,6 @@ import com.function.model.UsuarioRef;
 import com.function.model.RolRef;
 import com.microsoft.azure.functions.*;
 import com.microsoft.azure.functions.annotation.*;
-import com.nimbusds.jwt.JWTClaimsSet;
 
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -40,57 +38,8 @@ import java.util.*;
 public class EventosFunction {
 
   private static final ObjectMapper MAPPER = JsonMapper.builder()
-        .configure(MapperFeature.ACCEPT_CASE_INSENSITIVE_PROPERTIES, true)
-        .build();
-
-  // @FunctionName("eventosRoot")
-  // public HttpResponseMessage eventosRoot(
-  //     @HttpTrigger(name = "req", methods = { HttpMethod.GET,
-  //         HttpMethod.POST }, authLevel = AuthorizationLevel.ANONYMOUS, route = "eventos") HttpRequestMessage<Optional<String>> request,
-  //     final ExecutionContext ctx) throws Exception {
-
-  //   ctx.getLogger().info(">>> 1. INICIANDO FUNCTION EVENTOS ROOT");
-    
-  //   String authHeader = firstNonNullHeader(request, "Authorization", "authorization");
-    
-  //   if (authHeader == null) {
-  //       ctx.getLogger().severe(">>> 2. ALERTA ROJA: El Header Authorization es NULL. El BFF no lo envió.");
-  //   } else {
-  //       String preview = authHeader.length() > 10 ? authHeader.substring(0, 10) + "..." : authHeader;
-  //       ctx.getLogger().info(">>> 2. Header recibido: " + preview);
-  //   }
-  //   // -------------------------
-
-  //   try {
-  //     JWTClaimsSet claims = JwtAuthService.validate(authHeader);
-  //     String subject = claims.getSubject();
-  //     String email = claims.getStringClaim("preferred_username");
-
-  //     ctx.getLogger().info(">>> 3. Token VALIDADO para: " + subject + " (" + email + ")");
-  //   } catch (IllegalArgumentException iae) {
-  //     ctx.getLogger().severe(">>> ERROR AUTH (Argumento): " + iae.getMessage());
-  //     return request.createResponseBuilder(HttpStatus.UNAUTHORIZED)
-  //         .header(HttpConstants.CONTENT_TYPE, HttpConstants.APPLICATION_JSON)
-  //         .body(HttpConstants.ERROR_MISSING_AUTH)
-  //         .build();
-  //   } catch (Exception e) {
-  //     ctx.getLogger().severe(">>> ERROR AUTH (Validación): " + e.getMessage());
-  //     e.printStackTrace(); 
-  //     return request.createResponseBuilder(HttpStatus.UNAUTHORIZED)
-  //         .header(HttpConstants.CONTENT_TYPE, HttpConstants.APPLICATION_JSON)
-  //         .body("{\"error\": \"Token invalido: " + e.getMessage() + "\"}")
-  //         .build();
-  //   }
-
-  //   switch (request.getHttpMethod()) {
-  //     case GET:
-  //       return listar(request);
-  //     case POST:
-  //       return crear(request);
-  //     default:
-  //       return request.createResponseBuilder(HttpStatus.METHOD_NOT_ALLOWED).build();
-  //   }
-  // }
+      .configure(MapperFeature.ACCEPT_CASE_INSENSITIVE_PROPERTIES, true)
+      .build();
 
   @FunctionName("eventosRoot")
   public HttpResponseMessage eventosRoot(
@@ -110,9 +59,9 @@ public class EventosFunction {
       case POST:
         // ¡Privado! Validamos token antes de crear.
         if (!esTokenValido(request, ctx)) {
-             return request.createResponseBuilder(HttpStatus.UNAUTHORIZED)
-                 .header(HttpConstants.CONTENT_TYPE, HttpConstants.APPLICATION_JSON)
-                 .body(HttpConstants.ERROR_INVALID_AUTH).build();
+          return request.createResponseBuilder(HttpStatus.UNAUTHORIZED)
+              .header(HttpConstants.CONTENT_TYPE, HttpConstants.APPLICATION_JSON)
+              .body(HttpConstants.ERROR_INVALID_AUTH).build();
         }
         return crear(request);
 
@@ -120,53 +69,6 @@ public class EventosFunction {
         return request.createResponseBuilder(HttpStatus.METHOD_NOT_ALLOWED).build();
     }
   }
-
-// Valida el token y devuelve true/false SOLO LOGIN PUEDE VER EL GET LISTA
-  // @FunctionName("eventosById")
-  // public HttpResponseMessage eventosById(
-  //     @HttpTrigger(name = "req", methods = { HttpMethod.GET, HttpMethod.PUT,
-  //         HttpMethod.DELETE }, authLevel = AuthorizationLevel.ANONYMOUS, route = "eventos/{id}") HttpRequestMessage<Optional<String>> request,
-  //     @BindingName("id") String idStr,
-  //     final ExecutionContext ctx) throws Exception {
-
-  //   // validar token
-  //   String authHeader = firstNonNullHeader(request, "Authorization", "authorization");
-  //   try {
-  //     JwtAuthService.validate(authHeader);
-  //   } catch (IllegalArgumentException iae) {
-  //     return request.createResponseBuilder(HttpStatus.UNAUTHORIZED)
-  //         .header(HttpConstants.CONTENT_TYPE, HttpConstants.APPLICATION_JSON)
-  //         .body(HttpConstants.ERROR_MISSING_AUTH)
-  //         .build();
-  //   } catch (Exception e) {
-  //     ctx.getLogger().severe("Service token validation failed: " + e.getMessage());
-  //     return request.createResponseBuilder(HttpStatus.UNAUTHORIZED)
-  //         .header(HttpConstants.CONTENT_TYPE, HttpConstants.APPLICATION_JSON)
-  //         .body(HttpConstants.ERROR_INVALID_AUTH)
-  //         .build();
-  //   }
-
-  //   long id;
-  //   try {
-  //     id = Long.parseLong(idStr);
-  //   } catch (NumberFormatException e) {
-  //     return request.createResponseBuilder(HttpStatus.BAD_REQUEST)
-  //         .header(HttpConstants.CONTENT_TYPE, HttpConstants.APPLICATION_JSON)
-  //         .body("{\"error\":\"id inválido\"}")
-  //         .build();
-  //   }
-
-  //   switch (request.getHttpMethod()) {
-  //     case GET:
-  //       return obtener(request, id);
-  //     case PUT:
-  //       return actualizar(request, id);
-  //     case DELETE:
-  //       return eliminar(request, id);
-  //     default:
-  //       return request.createResponseBuilder(HttpStatus.METHOD_NOT_ALLOWED).build();
-  //   }
-  // }
 
   @FunctionName("eventosById")
   public HttpResponseMessage eventosById(
@@ -194,18 +96,18 @@ public class EventosFunction {
       case PUT:
         // ¡Privado! Solo usuarios logueados pueden intentar editar.
         if (!esTokenValido(request, ctx)) {
-            return request.createResponseBuilder(HttpStatus.UNAUTHORIZED)
-                .header(HttpConstants.CONTENT_TYPE, HttpConstants.APPLICATION_JSON)
-                .body(HttpConstants.ERROR_INVALID_AUTH).build();
+          return request.createResponseBuilder(HttpStatus.UNAUTHORIZED)
+              .header(HttpConstants.CONTENT_TYPE, HttpConstants.APPLICATION_JSON)
+              .body(HttpConstants.ERROR_INVALID_AUTH).build();
         }
         return actualizar(request, id);
 
       case DELETE:
         // ¡Privado! Solo usuarios logueados pueden intentar borrar.
         if (!esTokenValido(request, ctx)) {
-            return request.createResponseBuilder(HttpStatus.UNAUTHORIZED)
-                .header(HttpConstants.CONTENT_TYPE, HttpConstants.APPLICATION_JSON)
-                .body(HttpConstants.ERROR_INVALID_AUTH).build();
+          return request.createResponseBuilder(HttpStatus.UNAUTHORIZED)
+              .header(HttpConstants.CONTENT_TYPE, HttpConstants.APPLICATION_JSON)
+              .body(HttpConstants.ERROR_INVALID_AUTH).build();
         }
         return eliminar(request, id);
 
@@ -214,22 +116,23 @@ public class EventosFunction {
     }
   }
 
-  // Método auxiliar para validar token solo cuando sea necesario (POST, PUT, DELETE)
+  // Método auxiliar para validar token solo cuando sea necesario (POST, PUT,
+  // DELETE)
   private boolean esTokenValido(HttpRequestMessage<?> request, ExecutionContext ctx) {
-      String authHeader = firstNonNullHeader(request, "Authorization", "authorization");
-      
-      if (authHeader == null) {
-          ctx.getLogger().warning("Intento de escritura sin Header Authorization");
-          return false;
-      }
+    String authHeader = firstNonNullHeader(request, "Authorization", "authorization");
 
-      try {
-          JwtAuthService.validate(authHeader);
-          return true; // Token OK
-      } catch (Exception e) {
-          ctx.getLogger().warning("Token inválido en operación de escritura: " + e.getMessage());
-          return false;
-      }
+    if (authHeader == null) {
+      ctx.getLogger().warning("Intento de escritura sin Header Authorization");
+      return false;
+    }
+
+    try {
+      JwtAuthService.validate(authHeader);
+      return true; // Token OK
+    } catch (Exception e) {
+      ctx.getLogger().warning("Token inválido en operación de escritura: " + e.getMessage());
+      return false;
+    }
   }
 
   private HttpResponseMessage listar(HttpRequestMessage<?> req) {
@@ -252,8 +155,8 @@ public class EventosFunction {
       }
       return json(req, out, HttpStatus.OK);
     } catch (SQLException | IOException e) {
-        throw new ApplicationException("Error listando eventos", e);
-    } 
+      throw new ApplicationException("Error listando eventos", e);
+    }
   }
 
   private HttpResponseMessage obtener(HttpRequestMessage<?> req, Long id) {
@@ -277,12 +180,13 @@ public class EventosFunction {
         return json(req, e, HttpStatus.OK);
       }
     } catch (SQLException | IOException e) {
-        throw new ApplicationException("Error al obtener evento", e);
-    } 
+      throw new ApplicationException("Error al obtener evento", e);
+    }
   }
 
   private HttpResponseMessage crear(HttpRequestMessage<Optional<String>> req) throws IOException {
-    Map<String, Object> in = MAPPER.readValue(req.getBody().orElse("{}"), new TypeReference<Map<String, Object>>() {});
+    Map<String, Object> in = MAPPER.readValue(req.getBody().orElse("{}"), new TypeReference<Map<String, Object>>() {
+    });
     EventoDTO evento = EventoRequestMapper.from(in);
 
     // validations mínimas
@@ -294,16 +198,16 @@ public class EventosFunction {
         PreparedStatement ps = con.prepareStatement(
             "INSERT INTO eventos (id_tipo_evento, id_azure, id_rol, titulo, descripcion, fechaInicio, fechaTermino, precio, direccion) VALUES (?,?,?,?,?,?,?,?,?)",
             Statement.RETURN_GENERATED_KEYS)) {
-          setLongOrNull(ps, 1, evento.getIdTipoEvento());
-          setUUIDOrNull(ps, 2, evento.getIdAzure());
-          setLongOrNull(ps, 3, evento.getIdRol());
-          ps.setString(4, evento.getTitulo());
-          ps.setString(5, evento.getDescripcion());
-          setInstantOrNull(ps, 6, evento.getFechaInicio());
-          setInstantOrNull(ps, 7, evento.getFechaTermino());
-          setBigDecimalOrNull(ps, 8, evento.getPrecio());
-          ps.setString(9, evento.getDireccion());
-          ps.executeUpdate();
+      setLongOrNull(ps, 1, evento.getIdTipoEvento());
+      setUUIDOrNull(ps, 2, evento.getIdAzure());
+      setLongOrNull(ps, 3, evento.getIdRol());
+      ps.setString(4, evento.getTitulo());
+      ps.setString(5, evento.getDescripcion());
+      setInstantOrNull(ps, 6, evento.getFechaInicio());
+      setInstantOrNull(ps, 7, evento.getFechaTermino());
+      setBigDecimalOrNull(ps, 8, evento.getPrecio());
+      ps.setString(9, evento.getDireccion());
+      ps.executeUpdate();
 
       try (ResultSet keys = ps.getGeneratedKeys()) {
         if (keys.next()) {
@@ -314,113 +218,95 @@ public class EventosFunction {
       }
       return req.createResponseBuilder(HttpStatus.CREATED).build();
     } catch (SQLException e) {
-        throw new ApplicationException("Error al obtener evento", e);
-    } 
+      throw new ApplicationException("Error al obtener evento", e);
+    }
   }
 
   private HttpResponseMessage actualizar(HttpRequestMessage<Optional<String>> req, Long id) throws IOException {
-    Map<String, Object> in = MAPPER.readValue(req.getBody().orElse("{}"), new TypeReference<Map<String, Object>>() {});
+    Map<String, Object> in = MAPPER.readValue(req.getBody().orElse("{}"), new TypeReference<Map<String, Object>>() {
+    });
     EventoDTO evento = EventoRequestMapper.from(in);
     try (Connection con = Db.connect();
         PreparedStatement ps = con.prepareStatement(
             "UPDATE eventos SET id_tipo_evento=?, id_azure=?, id_rol=?, titulo=?, descripcion=?, fechaInicio=?, fechaTermino=?, precio=?, direccion=? WHERE id_eventos=?")) {
-          setLongOrNull(ps, 1, evento.getIdTipoEvento()); 
-          setUUIDOrNull(ps, 2, evento.getIdAzure());
-          setLongOrNull(ps, 3, evento.getIdRol());
-          ps.setString(4, evento.getTitulo());
-          ps.setString(5, evento.getDescripcion());
-          setInstantOrNull(ps, 6, evento.getFechaInicio());
-          setInstantOrNull(ps, 7, evento.getFechaTermino());
-          setBigDecimalOrNull(ps, 8, evento.getPrecio());
-          ps.setString(9, evento.getDireccion());
-          ps.setLong(10, id);
+      setLongOrNull(ps, 1, evento.getIdTipoEvento());
+      setUUIDOrNull(ps, 2, evento.getIdAzure());
+      setLongOrNull(ps, 3, evento.getIdRol());
+      ps.setString(4, evento.getTitulo());
+      ps.setString(5, evento.getDescripcion());
+      setInstantOrNull(ps, 6, evento.getFechaInicio());
+      setInstantOrNull(ps, 7, evento.getFechaTermino());
+      setBigDecimalOrNull(ps, 8, evento.getPrecio());
+      ps.setString(9, evento.getDireccion());
+      ps.setLong(10, id);
       int rows = ps.executeUpdate();
       if (rows == 0)
         return req.createResponseBuilder(HttpStatus.NOT_FOUND).build();
       EventBusEG.publish("Eventos.Evento.Actualizado", "/eventos/" + id, Map.of("id_eventos", id));
       return obtener(req, id);
     } catch (SQLException e) {
-        throw new ApplicationException("Error al obtener evento", e);
+      throw new ApplicationException("Error al obtener evento", e);
     }
   }
 
-  // private HttpResponseMessage eliminar(HttpRequestMessage<?> req, Long id, HttpRequestMessage<?> originalReq)
-  //     throws Exception {
-  //   // autorización: solo admin (según header X-User-Roles)
-  //   String rolesCsv = originalReq.getHeaders().getOrDefault("x-user-roles",
-  //       originalReq.getHeaders().get("X-User-Roles"));
-  //   boolean isAdmin = rolesCsv != null && Arrays.asList(rolesCsv.split(",")).contains("admin");
-  //   if (!isAdmin)
-  //     return originalReq.createResponseBuilder(HttpStatus.FORBIDDEN).body("{\"error\":\"Solo admin puede borrar\"}")
-  //         .build();
-
-  //   try (Connection con = Db.connect();
-  //       PreparedStatement ps = con.prepareStatement("DELETE FROM eventos WHERE id_eventos = ?")) {
-  //     ps.setLong(1, id);
-  //     int rows = ps.executeUpdate();
-  //     if (rows > 0) {
-  //       EventBusEG.publish("Eventos.Evento.Eliminado", "/eventos/" + id, Map.of("id_eventos", id));
-  //       return originalReq.createResponseBuilder(HttpStatus.NO_CONTENT).build();
-  //     } else {
-  //       return originalReq.createResponseBuilder(HttpStatus.NOT_FOUND).build();
-  //     }
-  //   }
-  // }
   private HttpResponseMessage eliminar(HttpRequestMessage<?> req, Long idEvento) {
     // 1. Obtener quién quiere borrar
     String idAzureSolicitante = req.getQueryParameters().get("id_azure");
 
     if (idAzureSolicitante == null) {
-        return req.createResponseBuilder(HttpStatus.UNAUTHORIZED)
-                  .body("{\"error\": \"Falta id_azure\"}").build();
+      return req.createResponseBuilder(HttpStatus.UNAUTHORIZED)
+          .body("{\"error\": \"Falta id_azure\"}").build();
     }
 
     try (Connection con = Db.connect()) {
-        
-        boolean esAdmin = false;
-        boolean esOwner = false;
 
-        // A. VERIFICAR SI ES ADMIN
-        String sqlAdmin = "SELECT id_rol FROM usuarios WHERE id_azure = ?";
-        try (PreparedStatement ps = con.prepareStatement(sqlAdmin)) {
-            ps.setObject(1, java.util.UUID.fromString(idAzureSolicitante));
-            try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next() && rs.getLong("id_rol") == 1) {
-                    esAdmin = true;
-                }
-            }
-        }
+      boolean esAdmin = false;
+      boolean esOwner = false;
 
-        // B. VERIFICAR SI ES DUEÑO (Si no es admin)
-        if (!esAdmin) {
-             String sqlOwner = "SELECT 1 FROM eventos WHERE id_eventos = ? AND id_azure = ?";
-             try (PreparedStatement ps = con.prepareStatement(sqlOwner)) {
-                ps.setLong(1, idEvento);
-                ps.setObject(2, java.util.UUID.fromString(idAzureSolicitante));
-                try (ResultSet rs = ps.executeQuery()) {
-                    if (rs.next()) esOwner = true;
-                }
-             }
+      // A. VERIFICAR SI ES ADMIN
+      String sqlAdmin = "SELECT id_rol FROM usuarios WHERE id_azure = ?";
+      try (PreparedStatement ps = con.prepareStatement(sqlAdmin)) {
+        ps.setObject(1, java.util.UUID.fromString(idAzureSolicitante));
+        try (ResultSet rs = ps.executeQuery()) {
+          if (rs.next() && rs.getLong("id_rol") == 1) {
+            esAdmin = true;
+          }
         }
+      }
 
-        // C. DECISIÓN FINAL
-        if (!esAdmin && !esOwner) {
-            return req.createResponseBuilder(HttpStatus.FORBIDDEN)
-                      .body("{\"error\": \"No tienes permiso para borrar este evento\"}").build();
+      // B. VERIFICAR SI ES DUEÑO (Si no es admin)
+      if (!esAdmin) {
+        String sqlOwner = "SELECT 1 FROM eventos WHERE id_eventos = ? AND id_azure = ?";
+        try (PreparedStatement ps = con.prepareStatement(sqlOwner)) {
+          ps.setLong(1, idEvento);
+          ps.setObject(2, java.util.UUID.fromString(idAzureSolicitante));
+          try (ResultSet rs = ps.executeQuery()) {
+            if (rs.next())
+              esOwner = true;
+          }
         }
+      }
 
-        // D. BORRAR
-        String sqlDelete = "DELETE FROM eventos WHERE id_eventos = ?";
-        try (PreparedStatement ps = con.prepareStatement(sqlDelete)) {
-            ps.setLong(1, idEvento);
-            int rows = ps.executeUpdate();
-            if (rows > 0) return req.createResponseBuilder(HttpStatus.OK).body("{\"status\": \"Eliminado\"}").build();
-            else return req.createResponseBuilder(HttpStatus.NOT_FOUND).build();
-        }
+      // C. DECISIÓN FINAL
+      if (!esAdmin && !esOwner) {
+        return req.createResponseBuilder(HttpStatus.FORBIDDEN)
+            .body("{\"error\": \"No tienes permiso para borrar este evento\"}").build();
+      }
+
+      // D. BORRAR
+      String sqlDelete = "DELETE FROM eventos WHERE id_eventos = ?";
+      try (PreparedStatement ps = con.prepareStatement(sqlDelete)) {
+        ps.setLong(1, idEvento);
+        int rows = ps.executeUpdate();
+        if (rows > 0)
+          return req.createResponseBuilder(HttpStatus.OK).body("{\"status\": \"Eliminado\"}").build();
+        else
+          return req.createResponseBuilder(HttpStatus.NOT_FOUND).build();
+      }
 
     } catch (Exception e) {
-        return req.createResponseBuilder(HttpStatus.INTERNAL_SERVER_ERROR)
-                  .body("Error: " + e.getMessage()).build();
+      return req.createResponseBuilder(HttpStatus.INTERNAL_SERVER_ERROR)
+          .body("Error: " + e.getMessage()).build();
     }
   }
 
@@ -491,24 +377,31 @@ public class EventosFunction {
   }
 
   private void setLongOrNull(PreparedStatement ps, int idx, Long value) throws SQLException {
-  if (value != null) ps.setLong(idx, value);
-  else ps.setNull(idx, Types.BIGINT);
+    if (value != null)
+      ps.setLong(idx, value);
+    else
+      ps.setNull(idx, Types.BIGINT);
   }
 
   private void setUUIDOrNull(PreparedStatement ps, int idx, UUID value) throws SQLException {
-    if (value != null) ps.setObject(idx, value);
-    else ps.setNull(idx, Types.OTHER);
+    if (value != null)
+      ps.setObject(idx, value);
+    else
+      ps.setNull(idx, Types.OTHER);
   }
 
   private void setInstantOrNull(PreparedStatement ps, int idx, Instant value) throws SQLException {
-    if (value != null) ps.setTimestamp(idx, Timestamp.from(value));
-    else ps.setNull(idx, Types.TIMESTAMP);
+    if (value != null)
+      ps.setTimestamp(idx, Timestamp.from(value));
+    else
+      ps.setNull(idx, Types.TIMESTAMP);
   }
 
   private void setBigDecimalOrNull(PreparedStatement ps, int idx, BigDecimal value) throws SQLException {
-    if (value != null) ps.setBigDecimal(idx, value);
-    else ps.setNull(idx, Types.NUMERIC);
+    if (value != null)
+      ps.setBigDecimal(idx, value);
+    else
+      ps.setNull(idx, Types.NUMERIC);
   }
-
 
 }
