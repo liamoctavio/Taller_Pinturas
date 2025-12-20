@@ -2,12 +2,16 @@ package com.function;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.function.common.HttpConstants;
+import com.function.exception.ApplicationException;
 import com.microsoft.azure.functions.*;
 import com.microsoft.azure.functions.annotation.*;
 import graphql.ExecutionInput;
 import graphql.GraphQL;
 import graphql.Scalars;
 import graphql.schema.*;
+
+import java.io.IOException;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
@@ -26,6 +30,9 @@ import java.util.*;
  */
 public class FunctionGraphQL {
 
+  private static final String DESCRIPCION = "descripcion";
+  private static final String TITULO = "titulo";
+  private static final String INCLUDE_IMAGE = "includeImage";
   private static final ObjectMapper MAPPER = new ObjectMapper();
   static HttpClient httpClient = HttpClient.newHttpClient(); // visible para test
 
@@ -38,17 +45,6 @@ public class FunctionGraphQL {
   static {
     // service token (may be "key:<fn-key>" or a JWT)
     final String SERVICE_AUTH_TOKEN = Optional.ofNullable(System.getenv("SERVICE_AUTH_TOKEN")).orElse("");
-
-    // resolver: if env var is set and not "self" return it; otherwise build from WEBSITE_HOSTNAME
-    java.util.function.Function<String,String> resolveBase = (envName) -> {
-      String envVal = Optional.ofNullable(System.getenv(envName)).orElse("").trim();
-      if (!envVal.isBlank() && !"self".equalsIgnoreCase(envVal)) {
-        return envVal;
-      }
-      String site = System.getenv("WEBSITE_HOSTNAME");
-      if (site != null && !site.isBlank()) return "https://" + site;
-      return "";
-    };
 
    String base = System.getProperty(
         "API_TALLER_PINTURAS",
@@ -67,7 +63,7 @@ public class FunctionGraphQL {
     // --- DataFetchers ---
 
     DataFetcher<List<Map<String,Object>>> obrasListDF = env -> {
-      Boolean includeImage = env.getArgument("includeImage");
+      Boolean includeImage = env.getArgument(INCLUDE_IMAGE);
       String url = URL_OBRAS + (includeImage != null && includeImage ? "?includeImage=true" : "");
       return getJson(url, SERVICE_AUTH_TOKEN, new TypeReference<List<Map<String,Object>>>(){});
     };
@@ -77,8 +73,10 @@ public class FunctionGraphQL {
       if (idArg == null) return null;
       String id = String.valueOf(idArg);
       String url = joinUrl(URL_OBRAS, "/" + URLEncoder.encode(id, StandardCharsets.UTF_8));
-      Object inc = env.getArgument("includeImage");
-      if (inc instanceof Boolean && (Boolean)inc) url += "?includeImage=true";
+      Object inc = env.getArgument(INCLUDE_IMAGE);
+      if (inc instanceof Boolean includeImage && Boolean.TRUE.equals(includeImage)) {
+          url += "?includeImage=true";
+      }
       return getJson(url, SERVICE_AUTH_TOKEN, new TypeReference<Map<String,Object>>(){});
     };
 
@@ -107,7 +105,6 @@ public class FunctionGraphQL {
     };
 
     DataFetcher<Map<String,Object>> crearObraDF = env -> {
-      @SuppressWarnings("unchecked")
       Map<String,Object> input = env.getArgument("input");
       if (input == null) input = Collections.emptyMap();
       return postJson(URL_OBRAS, SERVICE_AUTH_TOKEN, input, new TypeReference<Map<String,Object>>() {});
@@ -144,8 +141,8 @@ public class FunctionGraphQL {
         .name("Obra")
         .field(f -> f.name("id_obra").type(Scalars.GraphQLInt))
         .field(f -> f.name("tipo").type(tipoObraType))
-        .field(f -> f.name("titulo").type(Scalars.GraphQLString))
-        .field(f -> f.name("descripcion").type(Scalars.GraphQLString))
+        .field(f -> f.name(TITULO).type(Scalars.GraphQLString))
+        .field(f -> f.name(DESCRIPCION).type(Scalars.GraphQLString))
         .field(f -> f.name("imagenBase64").type(Scalars.GraphQLString))
         .build();
 
@@ -155,8 +152,8 @@ public class FunctionGraphQL {
         .field(f -> f.name("tipo").type(tipoEventoType))
         .field(f -> f.name("usuario").type(usuarioRefType))
         .field(f -> f.name("rol").type(rolRefType))
-        .field(f -> f.name("titulo").type(Scalars.GraphQLString))
-        .field(f -> f.name("descripcion").type(Scalars.GraphQLString))
+        .field(f -> f.name(TITULO).type(Scalars.GraphQLString))
+        .field(f -> f.name(DESCRIPCION).type(Scalars.GraphQLString))
         .field(f -> f.name("fechaInicio").type(Scalars.GraphQLString))
         .field(f -> f.name("fechaTermino").type(Scalars.GraphQLString))
         .field(f -> f.name("precio").type(Scalars.GraphQLFloat))
@@ -177,8 +174,8 @@ public class FunctionGraphQL {
     GraphQLInputObjectType obraInput = GraphQLInputObjectType.newInputObject()
         .name("ObraInput")
         .field(GraphQLInputObjectField.newInputObjectField().name("id_tipo_obra").type(Scalars.GraphQLInt).build())
-        .field(GraphQLInputObjectField.newInputObjectField().name("titulo").type(Scalars.GraphQLString).build())
-        .field(GraphQLInputObjectField.newInputObjectField().name("descripcion").type(Scalars.GraphQLString).build())
+        .field(GraphQLInputObjectField.newInputObjectField().name(TITULO).type(Scalars.GraphQLString).build())
+        .field(GraphQLInputObjectField.newInputObjectField().name(DESCRIPCION).type(Scalars.GraphQLString).build())
         .field(GraphQLInputObjectField.newInputObjectField().name("imagenBase64").type(Scalars.GraphQLString).build())
         .build();
 
@@ -187,12 +184,12 @@ public class FunctionGraphQL {
         .name("Query")
         .field(f -> f.name("obras")
             .type(new GraphQLList(obraType))
-            .argument(a -> a.name("includeImage").type(Scalars.GraphQLBoolean))
+            .argument(a -> a.name(INCLUDE_IMAGE).type(Scalars.GraphQLBoolean))
             .dataFetcher(obrasListDF))
         .field(f -> f.name("obra")
             .type(obraType)
             .argument(a -> a.name("id").type(Scalars.GraphQLInt))
-            .argument(a -> a.name("includeImage").type(Scalars.GraphQLBoolean))
+            .argument(a -> a.name(INCLUDE_IMAGE).type(Scalars.GraphQLBoolean))
             .dataFetcher(obraByIdDF))
         .field(f -> f.name("eventos")
             .type(new GraphQLList(eventoType))
@@ -239,7 +236,7 @@ public class FunctionGraphQL {
     HttpRequest.Builder b = HttpRequest.newBuilder()
         .uri(URI.create(url))
         .timeout(Duration.ofSeconds(20))
-        .header("Accept", "application/json")
+        .header("Accept", HttpConstants.APPLICATION_JSON)
         .GET();
     if (serviceToken != null && !serviceToken.isBlank()) {
       if (serviceToken.startsWith("key:")) {
@@ -255,8 +252,8 @@ public class FunctionGraphQL {
     HttpRequest.Builder b = HttpRequest.newBuilder()
         .uri(URI.create(url))
         .timeout(Duration.ofSeconds(20))
-        .header("Accept", "application/json")
-        .header("Content-Type", "application/json")
+        .header("Accept", HttpConstants.APPLICATION_JSON)
+        .header(HttpConstants.CONTENT_TYPE, HttpConstants.APPLICATION_JSON)
         .POST(HttpRequest.BodyPublishers.ofString(json));
     if (serviceToken != null && !serviceToken.isBlank()) {
       if (serviceToken.startsWith("key:")) {
@@ -268,28 +265,27 @@ public class FunctionGraphQL {
     return b;
   }
 
-  private static <T> T getJson(String url, String serviceToken, TypeReference<T> type) throws Exception {
+  private static <T> T getJson(String url, String serviceToken, TypeReference<T> type) throws IOException, InterruptedException {
     HttpResponse<String> resp = httpClient.send(getBuilder(url, serviceToken).build(), HttpResponse.BodyHandlers.ofString());
     if (resp.statusCode() / 100 == 2) {
-      String body = resp.body();
-      if (body == null || body.isBlank()) {
-        if (type.getType().getTypeName().startsWith("java.util.List")) return (T) Collections.emptyList();
-        return null;
-      }
-      return MAPPER.readValue(body, type);
+       String body = resp.body();
+        if (body == null || body.isBlank()) {
+            return null;
+        }
+        return MAPPER.readValue(body, type);
     }
-    throw new RuntimeException("GET " + url + " -> " + resp.statusCode() + " " + resp.body());
+    throw new ApplicationException("GET " + url + " -> " + resp.statusCode() + " " + resp.body());
   }
 
-  private static <T> T postJson(String url, String serviceToken, Object body, TypeReference<T> type) throws Exception {
-    String json = (body instanceof String) ? (String) body : MAPPER.writeValueAsString(body);
+  private static <T> T postJson(String url, String serviceToken, Object body, TypeReference<T> type) throws IOException, InterruptedException  {
+    String json = (body instanceof String str) ?  str : MAPPER.writeValueAsString(body);
     HttpResponse<String> resp = httpClient.send(postBuilder(url, serviceToken, json).build(), HttpResponse.BodyHandlers.ofString());
     if (resp.statusCode() / 100 == 2 || resp.statusCode() == 201) {
       String b = resp.body();
       if (b == null || b.isBlank()) return null;
       return MAPPER.readValue(b, type);
     }
-    throw new RuntimeException("POST " + url + " -> " + resp.statusCode() + " " + resp.body());
+    throw new ApplicationException("POST " + url + " -> " + resp.statusCode() + " " + resp.body());
   }
 
   @FunctionName("graphql")
@@ -301,15 +297,16 @@ public class FunctionGraphQL {
     Map<String, Object> body = request.getBody();
     if (body == null || !body.containsKey("query")) {
       return request.createResponseBuilder(HttpStatus.BAD_REQUEST)
-          .header("Content-Type","application/json")
+          .header(HttpConstants.CONTENT_TYPE, HttpConstants.APPLICATION_JSON)
           .body(Map.of("error","Body JSON inválido. Esperado: { \"query\": \"...\" }"))
           .build();
     }
 
     String query = String.valueOf(body.get("query"));
-    Map<String,Object> variables = Map.of();
-    Object vars = body.get("variables");
-    if (vars instanceof Map) variables = (Map<String,Object>) vars;
+    Map<String,Object> variables =  MAPPER.convertValue(
+      body.get("variables"),
+      new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {}
+    );
 
     ExecutionInput input = ExecutionInput.newExecutionInput()
         .query(query)
@@ -318,7 +315,7 @@ public class FunctionGraphQL {
 
     Map<String,Object> result = graphQL.execute(input).toSpecification();
     return request.createResponseBuilder(HttpStatus.OK)
-        .header("Content-Type","application/json")
+        .header(HttpConstants.CONTENT_TYPE, HttpConstants.APPLICATION_JSON)
         .body(result)
         .build();
   }

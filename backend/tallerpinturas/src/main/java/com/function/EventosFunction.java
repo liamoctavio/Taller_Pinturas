@@ -37,6 +37,7 @@ import java.util.*;
  */
 public class EventosFunction {
 
+  private static final String ID_EVENTOS = "id_eventos";
   private static final ObjectMapper MAPPER = JsonMapper.builder()
       .configure(MapperFeature.ACCEPT_CASE_INSENSITIVE_PROPERTIES, true)
       .build();
@@ -212,7 +213,7 @@ public class EventosFunction {
       try (ResultSet keys = ps.getGeneratedKeys()) {
         if (keys.next()) {
           long newId = keys.getLong(1);
-          EventBusEG.publish("Eventos.Evento.Creado", "/eventos/" + newId, Map.of("id_eventos", newId));
+          EventBusEG.publish("Eventos.Evento.Creado", "/eventos/" + newId, Map.of(ID_EVENTOS, newId));
           return obtener(req, newId);
         }
       }
@@ -242,7 +243,7 @@ public class EventosFunction {
       int rows = ps.executeUpdate();
       if (rows == 0)
         return req.createResponseBuilder(HttpStatus.NOT_FOUND).build();
-      EventBusEG.publish("Eventos.Evento.Actualizado", "/eventos/" + id, Map.of("id_eventos", id));
+      EventBusEG.publish("Eventos.Evento.Actualizado", "/eventos/" + id, Map.of(ID_EVENTOS, id));
       return obtener(req, id);
     } catch (SQLException e) {
       throw new ApplicationException("Error al obtener evento", e);
@@ -313,7 +314,7 @@ public class EventosFunction {
   // mapea ResultSet -> Evento con TipoEvento, UsuarioRef y RolRef
   private static Evento mapEvento(ResultSet rs) throws SQLException {
     Evento e = new Evento();
-    e.setId_eventos(rs.getLong("id_eventos"));
+    e.setId_eventos(rs.getLong(ID_EVENTOS));
     e.setTitulo(rs.getString("titulo"));
     e.setDescripcion(rs.getString("descripcion"));
 
