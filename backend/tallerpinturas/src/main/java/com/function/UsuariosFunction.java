@@ -2,7 +2,6 @@ package com.function;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.json.JsonMapper;
@@ -12,7 +11,6 @@ import com.function.model.Usuario;
 import com.function.model.RolRef;
 import com.microsoft.azure.functions.*;
 import com.microsoft.azure.functions.annotation.*;
-import com.nimbusds.jwt.JWTClaimsSet;
 import com.function.auth.JwtAuthService;
 import com.function.common.HttpConstants;
 

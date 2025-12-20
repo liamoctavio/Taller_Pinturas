@@ -14,7 +14,6 @@ import com.function.model.Obra;
 import com.function.model.TipoObra;
 import com.microsoft.azure.functions.*;
 import com.microsoft.azure.functions.annotation.*;
-import com.nimbusds.jwt.JWTClaimsSet;
 
 import java.io.IOException;
 import java.sql.*;
@@ -47,56 +46,17 @@ public class ObrasFunction {
       .configure(MapperFeature.ACCEPT_CASE_INSENSITIVE_PROPERTIES, true)
       .build();
 
-  // @FunctionName("obrasRoot")
-  // public HttpResponseMessage obrasRoot(
-  // @HttpTrigger(name = "req",
-  // methods = {HttpMethod.GET, HttpMethod.POST},
-  // authLevel = AuthorizationLevel.ANONYMOUS,
-  // route = "obras")
-  // HttpRequestMessage<Optional<String>> request,
-  // final ExecutionContext ctx) throws Exception {
-
-  // // validar token de servicio
-  // String authHeader = firstNonNullHeader(request, "Authorization",
-  // "authorization");
-  // try {
-  // JWTClaimsSet claims = com.function.auth.JwtAuthService.validate(authHeader);
-  // // opcional: usar claims si necesario
-  // } catch (IllegalArgumentException iae) {
-  // return request.createResponseBuilder(HttpStatus.UNAUTHORIZED)
-  // .header(HttpConstants.CONTENT_TYPE,HttpConstants.APPLICATION_JSON)
-  // .body("{\"error\":\"Missing or malformed Authorization header\"}")
-  // .build();
-  // } catch (Exception e) {
-  // ctx.getLogger().severe("Service token validation failed: " + e.getMessage());
-  // return request.createResponseBuilder(HttpStatus.UNAUTHORIZED)
-  // .header(HttpConstants.CONTENT_TYPE,HttpConstants.APPLICATION_JSON)
-  // .body("{\"error\":\"Invalid service token\"}")
-  // .build();
-  // }
-
-  // switch (request.getHttpMethod()) {
-  // case GET: return listar(request);
-  // case POST: return crear(request, ctx);
-  // default: return
-  // request.createResponseBuilder(HttpStatus.METHOD_NOT_ALLOWED).build();
-  // }
-  // }
   @FunctionName("obrasRoot")
   public HttpResponseMessage obrasRoot(
       @HttpTrigger(name = "req", methods = { HttpMethod.GET,
           HttpMethod.POST }, authLevel = AuthorizationLevel.ANONYMOUS, route = "obras") HttpRequestMessage<Optional<String>> request,
       final ExecutionContext ctx) {
 
-    // YA NO VALIDAMOS AQUÍ ARRIBA.
-
     switch (request.getHttpMethod()) {
       case GET:
-        // ¡Público!
         return listar(request);
 
       case POST:
-        // ¡Privado! Validamos token antes de crear
         if (!esTokenValido(request, ctx)) {
           return request.createResponseBuilder(HttpStatus.UNAUTHORIZED)
               .header(HttpConstants.CONTENT_TYPE, HttpConstants.APPLICATION_JSON)
@@ -110,50 +70,6 @@ public class ObrasFunction {
     }
   }
 
-  // @FunctionName("obrasById")
-  // public HttpResponseMessage obrasById(
-  // @HttpTrigger(name = "req",
-  // methods = {HttpMethod.GET, HttpMethod.PUT, HttpMethod.DELETE},
-  // authLevel = AuthorizationLevel.ANONYMOUS,
-  // route = "obras/{id}")
-  // HttpRequestMessage<Optional<String>> request,
-  // @BindingName("id") String idStr,
-  // final ExecutionContext ctx) throws Exception {
-
-  // // validar token de servicio
-  // String authHeader = firstNonNullHeader(request, "Authorization",
-  // "authorization");
-  // try {
-  // com.function.auth.JwtAuthService.validate(authHeader);
-  // } catch (IllegalArgumentException iae) {
-  // return request.createResponseBuilder(HttpStatus.UNAUTHORIZED)
-  // .header(HttpConstants.CONTENT_TYPE,HttpConstants.APPLICATION_JSON)
-  // .body("{\"error\":\"Missing or malformed Authorization header\"}")
-  // .build();
-  // } catch (Exception e) {
-  // ctx.getLogger().severe("Service token validation failed: " + e.getMessage());
-  // return request.createResponseBuilder(HttpStatus.UNAUTHORIZED)
-  // .header(HttpConstants.CONTENT_TYPE,HttpConstants.APPLICATION_JSON)
-  // .body("{\"error\":\"Invalid service token\"}")
-  // .build();
-  // }
-
-  // long id;
-  // try { id = Long.parseLong(idStr); }
-  // catch (NumberFormatException e) {
-  // return request.createResponseBuilder(HttpStatus.BAD_REQUEST)
-  // .body("{\"error\":\"id inválido\"}")
-  // .header(HttpConstants.CONTENT_TYPE,HttpConstants.APPLICATION_JSON).build();
-  // }
-
-  // switch (request.getHttpMethod()) {
-  // case GET: return obtener(request, id);
-  // case PUT: return actualizar(request, id, ctx);
-  // case DELETE: return eliminar(request, id);
-  // default: return
-  // request.createResponseBuilder(HttpStatus.METHOD_NOT_ALLOWED).build();
-  // }
-  // }
   @FunctionName("obrasById")
   public HttpResponseMessage obrasById(
       @HttpTrigger(name = "req", methods = { HttpMethod.GET, HttpMethod.PUT,
@@ -218,24 +134,6 @@ public class ObrasFunction {
     }
   }
 
-  // LISTAR (sin imagen por defecto)
-  // private HttpResponseMessage listar(HttpRequestMessage<?> req) throws
-  // SQLException, IOException {
-  // String sql = "SELECT o.id_obra, o.id_tipo_obra, t.nombre AS tipo_nombre,
-  // o.titulo, o.descripcion " +
-  // "FROM obras o LEFT JOIN tipobra t ON o.id_tipo_obra = t.id_tipo_obra ORDER BY
-  // o.id_obra";
-  // try (Connection con = Db.connect();
-  // PreparedStatement ps = con.prepareStatement(sql);
-  // ResultSet rs = ps.executeQuery()) {
-  // List<Obra> out = new ArrayList<>();
-  // while (rs.next()) {
-  // out.add(map(rs, false));
-  // }
-  // return json(req, out, HttpStatus.OK);
-  // }
-  // }
-
   // listar los usuarios con la nuevas tablas
   private HttpResponseMessage listar(HttpRequestMessage<?> req) {
     // CAMBIO CLAVE: Hacemos JOIN para traer el id_azure del dueño
@@ -254,9 +152,6 @@ public class ObrasFunction {
         m.put(ID_OBRA, rs.getLong(ID_OBRA));
         m.put(TITULO, rs.getString(TITULO));
         m.put(DESCRIPCION, rs.getString(DESCRIPCION));
-        // ... otros campos ...
-
-        // AHORA SÍ ENVIAMOS EL DUEÑO AL FRONTEND
         m.put(ID_AZURE, rs.getString(ID_AZURE));
 
         out.add(m);
@@ -265,7 +160,6 @@ public class ObrasFunction {
     } catch (SQLException | IOException e) {
       throw new ApplicationException("Error listando obras", e);
     }
-    // ... catch ...
   }
 
   // OBTENER por id (incluye imagen si se solicita con includeImage)
@@ -291,92 +185,6 @@ public class ObrasFunction {
       }
     }
   }
-
-  // CREAR - acepta input flexible antiguo
-  // private HttpResponseMessage crear(HttpRequestMessage<Optional<String>> req,
-  // ExecutionContext ctx) {
-  // try {
-  // String body = req.getBody().orElse("");
-  // if (body.isBlank()) {
-  // return req.createResponseBuilder(HttpStatus.BAD_REQUEST)
-  // .header(HttpConstants.CONTENT_TYPE,HttpConstants.APPLICATION_JSON)
-  // .body("{\"error\":\"Body vacío\"}")
-  // .build();
-  // }
-
-  // // parse raw into Map first to allow flexible input (id_tipo_obra or
-  // tipo:{id_tipo_obra})
-  // Map<String,Object> inMap = MAPPER.readValue(body, Map.class);
-
-  // Long idTipo = extractIdTipoFromMap(inMap);
-  // String titulo = asString(inMap.get("titulo"));
-  // String descripcion = asString(inMap.get("descripcion"));
-  // String imagenBase64 = asString(inMap.get("imagenBase64"));
-  // byte[] imageBytes = (imagenBase64 != null && !imagenBase64.isBlank()) ?
-  // Base64.getDecoder().decode(imagenBase64) : null;
-
-  // if (titulo == null || titulo.isBlank()) {
-  // return req.createResponseBuilder(HttpStatus.BAD_REQUEST)
-  // .header(HttpConstants.CONTENT_TYPE,HttpConstants.APPLICATION_JSON)
-  // .body("{\"error\":\"titulo es obligatorio\"}")
-  // .build();
-  // }
-
-  // try (Connection con = Db.connect();
-  // PreparedStatement ps = con.prepareStatement(
-  // "INSERT INTO obras (id_tipo_obra, titulo, descripcion, imagen) VALUES
-  // (?,?,?,?)",
-  // Statement.RETURN_GENERATED_KEYS)) {
-
-  // if (idTipo != null) ps.setLong(1, idTipo); else ps.setNull(1, Types.BIGINT);
-  // ps.setString(2, titulo);
-  // ps.setString(3, descripcion);
-  // if (imageBytes != null) ps.setBytes(4, imageBytes); else ps.setNull(4,
-  // Types.BINARY);
-
-  // int rows = ps.executeUpdate();
-  // if (rows > 0) {
-  // try (ResultSet keys = ps.getGeneratedKeys()) {
-  // if (keys.next()) {
-  // long newId = keys.getLong(1);
-  // try {
-  // Map<String,Object> data = new HashMap<>();
-  // data.put("id_obra", newId);
-  // data.put("titulo", titulo);
-  // EventBusEG.publish("Arte.Obra.Creada", "/obras/" + newId, data);
-  // } catch (Throwable t) {
-  // ctx.getLogger().info("EventBus publish failed (ignored): " + t.getMessage());
-  // }
-  // return obtener(req, newId);
-  // }
-  // }
-  // }
-  // return req.createResponseBuilder(HttpStatus.INTERNAL_SERVER_ERROR)
-  // .header(HttpConstants.CONTENT_TYPE,HttpConstants.APPLICATION_JSON)
-  // .body("{\"error\":\"Insert no afectó filas\"}")
-  // .build();
-  // }
-  // } catch (com.fasterxml.jackson.databind.JsonMappingException jm) {
-  // return req.createResponseBuilder(HttpStatus.BAD_REQUEST)
-  // .header(HttpConstants.CONTENT_TYPE,HttpConstants.APPLICATION_JSON)
-  // .body("{\"error\":\"JSON inválido\",\"detalle\":\"" +
-  // jm.getOriginalMessage().replace("\"","'") + "\"}")
-  // .build();
-  // } catch (SQLException ex) {
-  // return req.createResponseBuilder(HttpStatus.INTERNAL_SERVER_ERROR)
-  // .header(HttpConstants.CONTENT_TYPE,HttpConstants.APPLICATION_JSON)
-  // .body("{\"error\":\"DB\",\"sqlstate\":\"" + ex.getSQLState() +
-  // "\",\"code\":" + ex.getErrorCode() +
-  // ",\"message\":\"" + ex.getMessage().replace("\"","'") + "\"}")
-  // .build();
-  // } catch (Exception e) {
-  // return req.createResponseBuilder(HttpStatus.INTERNAL_SERVER_ERROR)
-  // .header(HttpConstants.CONTENT_TYPE,HttpConstants.APPLICATION_JSON)
-  // .body("{\"error\":\"server\",\"message\":\"" +
-  // e.getMessage().replace("\"","'") + "\"}")
-  // .build();
-  // }
-  // }
 
   private HttpResponseMessage crear(HttpRequestMessage<Optional<String>> req, ExecutionContext ctx) {
     try {
@@ -445,85 +253,10 @@ public class ObrasFunction {
     }
   }
 
-  // ELImina pero el admin no puede
-  // private HttpResponseMessage eliminar(HttpRequestMessage<?> req, Long idObra)
-  // throws Exception {
-
-  // // 1. Obtener quién quiere borrar (desde el Query Param que enviamos en
-  // Angular)
-  // String idAzureSolicitante = req.getQueryParameters().get("id_azure");
-
-  // // 2. Obtener Roles (para saber si es Admin) - Esto viene en los Headers
-  // usualmente
-  // // Si no usas headers de roles, asumiremos que validamos por base de datos
-  // abajo.
-  // String rolesHeader = req.getHeaders().getOrDefault("x-user-roles", "");
-  // boolean esAdmin = rolesHeader.contains("admin"); // O lógica similar si
-  // tienes roles implementados
-
-  // if (idAzureSolicitante == null) {
-  // return req.createResponseBuilder(HttpStatus.UNAUTHORIZED)
-  // .body("{\"error\": \"Falta id_azure en la petición\"}").build();
-  // }
-
-  // try (Connection con = Db.connect()) {
-
-  // // PASO A: Verificar si tiene permiso
-  // // El permiso se concede si:
-  // // 1. Es Admin (lo verificamos por rol o consulta)
-  // // 2. O SI EXISTE un vínculo en usuarios_obras entre este usuario y esta obra
-
-  // boolean esOwner = false;
-
-  // // Verificamos en la tabla de unión si este usuario es dueño de esta obra
-  // String sqlCheck = "SELECT 1 FROM usuarios_obras WHERE id_obra = ? AND
-  // id_azure = ?";
-  // try (PreparedStatement psCheck = con.prepareStatement(sqlCheck)) {
-  // psCheck.setLong(1, idObra);
-  // psCheck.setObject(2, java.util.UUID.fromString(idAzureSolicitante));
-  // try (ResultSet rs = psCheck.executeQuery()) {
-  // if (rs.next()) {
-  // esOwner = true;
-  // }
-  // }
-  // }
-
-  // // Si NO es dueño y NO es admin, rechazamos
-  // // (Si aún no tienes roles configurados en headers, confía solo en esOwner
-  // por ahora)
-  // if (!esOwner && !esAdmin) {
-  // return req.createResponseBuilder(HttpStatus.FORBIDDEN)
-  // .body("{\"error\": \"No tienes permiso para borrar esta obra (no es
-  // tuya)\"}")
-  // .build();
-  // }
-
-  // // PASO B: Proceder a borrar
-  // // Como tienes ON DELETE CASCADE en tu SQL, al borrar la obra se borra el
-  // vínculo solo.
-  // String sqlDelete = "DELETE FROM obras WHERE id_obra = ?";
-  // try (PreparedStatement ps = con.prepareStatement(sqlDelete)) {
-  // ps.setLong(1, idObra);
-  // int rows = ps.executeUpdate();
-
-  // if (rows > 0) {
-  // return req.createResponseBuilder(HttpStatus.OK)
-  // .body("{\"status\": \"Eliminado\"}").build();
-  // } else {
-  // return req.createResponseBuilder(HttpStatus.NOT_FOUND)
-  // .body("{\"error\": \"Obra no encontrada\"}").build();
-  // }
-  // }
-  // } catch (Exception e) {
-  // return req.createResponseBuilder(HttpStatus.INTERNAL_SERVER_ERROR)
-  // .body("{\"error\": \"" + e.getMessage() + "\"}").build();
-  // }
-  // }
-
   // eliminar con verificacion de admin y dueño
   private HttpResponseMessage eliminar(HttpRequestMessage<?> req, Long idObra) {
 
-    // 1. Obtener quién quiere borrar
+    // Obtener quién quiere borrar
     String idAzureSolicitante = req.getQueryParameters().get(ID_AZURE);
 
     if (idAzureSolicitante == null) {
@@ -532,14 +265,10 @@ public class ObrasFunction {
     }
 
     try (Connection con = Db.connect()) {
-
-      // =====================================================================
-      // PASO 1: VERIFICAR SI ES ADMIN (CONSULTANDO LA BD)
-      // =====================================================================
       boolean esAdmin = false;
       String sqlAdmin = "SELECT id_rol FROM usuarios WHERE id_azure = ?";
       try (PreparedStatement psAdmin = con.prepareStatement(sqlAdmin)) {
-        psAdmin.setObject(1, java.util.UUID.fromString(idAzureSolicitante));
+        psAdmin.setObject(1, UUID.fromString(idAzureSolicitante));
         try (ResultSet rsAdmin = psAdmin.executeQuery()) {
           if (rsAdmin.next()) {
             long rol = rsAdmin.getLong("id_rol");
@@ -550,15 +279,12 @@ public class ObrasFunction {
         }
       }
 
-      // =====================================================================
-      // PASO 2: SI NO ES ADMIN, VERIFICAR SI ES DUEÑO
-      // =====================================================================
       boolean esOwner = false;
-      if (!esAdmin) { // Solo gastamos recursos buscando si no es admin ya
+      if (!esAdmin) {
         String sqlCheck = "SELECT 1 FROM usuarios_obras WHERE id_obra = ? AND id_azure = ?";
         try (PreparedStatement psCheck = con.prepareStatement(sqlCheck)) {
           psCheck.setLong(1, idObra);
-          psCheck.setObject(2, java.util.UUID.fromString(idAzureSolicitante));
+          psCheck.setObject(2, UUID.fromString(idAzureSolicitante));
           try (ResultSet rs = psCheck.executeQuery()) {
             if (rs.next()) {
               esOwner = true;
@@ -567,16 +293,12 @@ public class ObrasFunction {
         }
       }
 
-      // =====================================================================
-      // PASO 3: DECISIÓN FINAL
-      // =====================================================================
       if (!esOwner && !esAdmin) {
         return req.createResponseBuilder(HttpStatus.FORBIDDEN)
             .body("{\"error\": \"No tienes permiso. No eres el dueño ni Admin.\"}")
             .build();
       }
 
-      // PASO 4: BORRAR
       String sqlDelete = "DELETE FROM obras WHERE id_obra = ?";
       try (PreparedStatement ps = con.prepareStatement(sqlDelete)) {
         ps.setLong(1, idObra);

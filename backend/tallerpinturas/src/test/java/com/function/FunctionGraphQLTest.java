@@ -62,15 +62,6 @@ class FunctionGraphQLTest {
                 .thenReturn(httpResponse);
 
         // ---------- Query GraphQL ----------
-        String graphQLQuery = """
-        {
-          obras {
-            id
-            nombre
-            estado
-          }
-        }
-        """;
 
         Map<String, Object> body = new HashMap<>();
           body.put("query", """

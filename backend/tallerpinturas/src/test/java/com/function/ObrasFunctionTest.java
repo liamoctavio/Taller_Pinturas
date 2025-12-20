@@ -68,23 +68,6 @@ class ObrasFunctionTest {
        TESTS obrasRoot
        ========================================================= */
 
-//     @Test
-//     void obrasRoot_sinAuthorization_devuelve401() throws Exception {
-
-//         HttpRequestMessage<Optional<String>> req =
-//                 mockRequest(HttpMethod.GET, null, new HashMap<>());
-//         when(req.getHeaders()).thenReturn(Map.of());
-//         try (MockedStatic<JwtAuthService> jwtMock = mockStatic(JwtAuthService.class)) {
-
-//             jwtMock.when(() -> JwtAuthService.validate(null))
-//                    .thenThrow(new IllegalArgumentException("Missing Authorization"));
-
-//             HttpResponseMessage response = function.obrasRoot(req, context);
-
-//             verify(req).createResponseBuilder(HttpStatus.UNAUTHORIZED);
-//         }
-//     }
-
     @Test
     void obrasRoot_methodNotAllowed_devuelve405() throws Exception {
 
@@ -105,28 +88,6 @@ class ObrasFunctionTest {
             verify(req).createResponseBuilder(HttpStatus.METHOD_NOT_ALLOWED);
         }
     }
-
-//     @Test
-//     void obrasRoot_postBodyVacio_devuelve400() throws Exception {
-
-//         HttpRequestMessage<Optional<String>> req =
-//                 mockRequest(
-//                         HttpMethod.POST,
-//                         "",
-//                         Map.of("Authorization", "Bearer test")
-//                 );
-//         when(req.getHeaders()).thenReturn(Map.of());
-
-//         try (MockedStatic<JwtAuthService> jwtMock = mockStatic(JwtAuthService.class)) {
-
-//             jwtMock.when(() -> JwtAuthService.validate(anyString()))
-//                    .thenReturn(mock(JWTClaimsSet.class));
-
-//             HttpResponseMessage response = function.obrasRoot(req, context);
-
-//             verify(req).createResponseBuilder(HttpStatus.BAD_REQUEST);
-//         }
-//     }
 
     /* =========================================================
        TESTS obrasById

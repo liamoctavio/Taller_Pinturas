@@ -1,9 +1,7 @@
 package com.function;
 
 import com.function.auth.JwtAuthService;
-import com.function.common.HttpConstants;
 import com.function.db.Db;
-import com.function.events.EventBusEG;
 import com.microsoft.azure.functions.*;
 import com.nimbusds.jwt.JWTClaimsSet;
 
@@ -53,19 +51,6 @@ class EventosFunctionTest {
     // ----------------------------------------------------------------
     // eventosRoot
     // ----------------------------------------------------------------
-
-    //comentado temporalmente por el momento ya que no se usa
-    // @Test
-    // void eventosRoot_sinAuthorization_retorna401() throws Exception {
-    //     when(request.getHeaders()).thenReturn(Map.of());
-    //     when(request.getHttpMethod()).thenReturn(HttpMethod.GET);
-
-    //     HttpResponseMessage response = function.eventosRoot(request, context);
-
-    //     verify(request).createResponseBuilder(HttpStatus.UNAUTHORIZED);
-    //     verify(responseBuilder).body(HttpConstants.ERROR_MISSING_AUTH);
-    //     assertNotNull(response);
-    // }
 
     @Test
     void eventosRoot_tokenValido_listarOK() throws Exception {
