@@ -1,12 +1,12 @@
 package com.function.auth;
 
 import com.nimbusds.jose.JWSAlgorithm;
+import com.function.exception.ApplicationException;
 import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.jwk.JWKSet;
 import com.nimbusds.jose.jwk.source.ImmutableJWKSet;
 import com.nimbusds.jose.jwk.source.JWKSource;
 import com.nimbusds.jose.proc.BadJOSEException;
-import com.nimbusds.jose.proc.JWSKeySelector;
 import com.nimbusds.jose.proc.JWSVerificationKeySelector;
 import com.nimbusds.jose.proc.SecurityContext;
 import com.nimbusds.jwt.JWTClaimsSet;
@@ -24,7 +24,7 @@ import java.util.Date;
 
 public final class JwtAuthService {
 
-  private static volatile DefaultJWTProcessor<SecurityContext> JWT_PROC;
+  private static DefaultJWTProcessor<SecurityContext> jwtProc;
 
   private JwtAuthService() {}
 
@@ -37,11 +37,11 @@ public final class JwtAuthService {
 
     ensureInitialized();
     String token = authHeader.substring("Bearer ".length()).trim();
-    return JWT_PROC.process(token, null);
+    return jwtProc.process(token, null);
   }
 
   private static synchronized void ensureInitialized() {
-    if (JWT_PROC != null) return;
+    if (jwtProc != null) return;
 
     try {
       String jwksUrl = System.getenv("AZURE_AD_B2C_JWKS_URL");
@@ -74,30 +74,33 @@ public final class JwtAuthService {
         }
       });
 
-      JWT_PROC = proc;
-
+      jwtProc = proc;
+     } catch (InterruptedException e) {
+      Thread.currentThread().interrupt(); 
+      throw new ApplicationException("Inicialización interrumpida de JwtAuthService: " + e.getMessage(), e);
     } catch (Exception e) {
-      throw new RuntimeException("Error inicializando JwtAuthService", e);
-    }
+        throw new ApplicationException("Error inicializando JwtAuthService", e);
+      }
   }
 
   private static String fetchJwks(String jwksUrl)
       throws IOException, InterruptedException {
 
-    HttpClient client = HttpClient.newHttpClient();
-    HttpRequest req = HttpRequest.newBuilder()
-        .uri(URI.create(jwksUrl))
-        .timeout(Duration.ofSeconds(5))
-        .GET()
-        .build();
+    try (HttpClient client = HttpClient.newHttpClient()) {
+      HttpRequest req = HttpRequest.newBuilder()
+          .uri(URI.create(jwksUrl))
+          .timeout(Duration.ofSeconds(5))
+          .GET()
+          .build();
 
-    HttpResponse<String> resp =
-        client.send(req, HttpResponse.BodyHandlers.ofString());
+      HttpResponse<String> resp =
+          client.send(req, HttpResponse.BodyHandlers.ofString());
 
-    if (resp.statusCode() != 200) {
-      throw new IOException("Error fetching JWKS");
+      if (resp.statusCode() != 200) {
+        throw new IOException("Error fetching JWKS");
+      }
+
+      return resp.body();
     }
-
-    return resp.body();
   }
 }
