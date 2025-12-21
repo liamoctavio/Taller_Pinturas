@@ -66,9 +66,7 @@ export class NuevoEvento {
 
     // 2. Obtener usuario actual (para el id_azure)
     const cuenta = this.authService.getUser();
-    // Nota: Dependiendo de tu objeto usuario, saca el ID correcto (localAccountId, homeAccountId, etc)
-    // Si no tienes el ID a mano, puedes enviar un string genérico o el username si tu backend lo aguanta.
-    // this.nuevoEvento.id_azure = usuario?.localAccountId || 'usuario-anonimo';
+
     if (cuenta) {
         // Si hay usuario logueado, sacamos el UUID (localAccountId)
         console.log('Usuario detectado:', cuenta.username);
